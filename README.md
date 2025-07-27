@@ -121,5 +121,3 @@ SuiStrategy brings structured treasury mechanics and tokenized leverage to the S
 * Cross-chain asset onboarding (Fusion+)
 * Advanced execution strategies (Limit Orders)
 * Dynamic conversion mechanics and DAO governance
-
-With a strong MVP foundation and a modular roadmap, SuiStrategy is positioned to become the first **structured DeFi protocol** on Sui that bridges institutional logic with on-chain execution.
