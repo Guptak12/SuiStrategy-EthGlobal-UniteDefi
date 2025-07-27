@@ -96,7 +96,7 @@ This dynamic leads to natural positive pressure on SSTR's value as the treasury 
 
 ## Integration with 1inch
 
-### a) **1inch Fusion+** (Mandatory in MVP)
+### a) **1inch Fusion+**
 
 * Enables **cross-chain swaps between SUI ↔ ETH / USDC**
 * Use case: User deposits ETH/USDC on Ethereum → receives SUI on Sui for bonding
@@ -113,16 +113,6 @@ Used for:
 * **Strategy Automation**: Trigger custom orders on specific market events
 
 These features allow SSTR holders and the DAO to build a **programmable execution layer** directly on-chain without deploying custom market logic.
-
-## Roadmap
-
-| Phase       | Timeline | Features                                                            |
-| ----------- | -------- | ------------------------------------------------------------------- |
-| **Phase 1** | Week 1   | MVP launch, bonding system, Fusion+ integration, basic UI           |
-| **Phase 2** | Week 2–3 | 1inch Limit Order integration (TWAP, basic options)                 |
-| **Phase 3** | Week 4–5 | Advanced strategy logic, DAO interface, lending module rollout      |
-| **Phase 4** | Month 2  | Custom strategy builder, NFT dashboard, vault strategy management   |
-| **Phase 5** | Q4 2025  | Launch partner integrations, mobile experience, real-time analytics |
 
 ## Summary
 
