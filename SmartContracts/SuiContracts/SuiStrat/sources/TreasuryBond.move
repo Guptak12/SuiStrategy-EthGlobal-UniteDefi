@@ -1,19 +1,45 @@
 module suistrat::treasury {
-    use sui::balance::{Self,Balance};
+    use sui::object::{Self, UID};
+    use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
-    use suistrat::token::CDT;
+    use sui::tx_context::TxContext;
+    use sui::transfer;
+    use sui::clock::{Self, Clock};
+    use sui::event;
 
+    friend suistrat::token;
 
-    public struct Treasury has key,store {
+      public struct Treasury has key, store {
         id: UID,
         balance: Balance<SUI>,
         cdt_supply: u64,
-        growth_rate: u64
-
+        growth_rate: u64,
+        last_update: u64,
+        total_yield_generated: u64,
     }
 
-    public fun init_treasury(ctx: &mut TxContext) {
+    //Events
+ public struct YieldGenerated has copy, drop {
+        amount: u64,
+        new_balance: u64,
+        timestamp: u64,
+    }
+
+    public struct Deposited has copy, drop {
+        user: address,
+        amount: u64,
+        timestamp: u64,
+    }
+
+    public struct Withdrawn has copy, drop {
+        user: address,
+        amount: u64,
+        timestamp: u64,
+    }
+
+
+    public entry fun init_treasury(ctx: &mut TxContext) {
         let treasury = Treasury {
             id: object::new(ctx),
             balance: balance::zero<SUI>(),

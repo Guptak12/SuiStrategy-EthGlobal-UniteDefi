@@ -12,6 +12,9 @@ module suistrat::token {
     owner: address,
     cdt: Coin<CDT>,
 }
+
+
+
     public fun mint_cdt(
         treasury: &mut Treasury,
         cap: &mut TreasuryCap<CDT>,
@@ -34,6 +37,5 @@ public fun burn_cdt(
     coin::burn(cap, coin);
     decrement_cdt_supply(treasury, amount);
 }
-
-
 }
+
