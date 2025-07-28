@@ -1,41 +1,180 @@
 module suistrat::token {
-    use suistrat::treasury::{Treasury,increment_cdt_supply,get_cdt_supply,decrement_cdt_supply};
-    use sui::coin::{Self, Coin};
-    use sui::tx_context::TxContext;
-    use sui::transfer;
-    use sui::coin::TreasuryCap;
+    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::clock::{Self, Clock};
+    use sui::event;
+    use sui::sui::SUI;
+    use suistrat::treasury::{Self, Treasury};
 
-    public struct CDT has store, copy, drop {}
+    // Token struct
+    public struct CDT has store,copy,drop {}
 
+    // User strategy position
     public struct UserStrategy has key, store {
-    id: UID,
-    owner: address,
-    cdt: Coin<CDT>,
-}
+        id: UID,
+        owner: address,
+        cdt_amount: u64,
+        sui_deposited: u64,
+        created_at: u64,
+    }
+
+    // Events
+    public struct StrategyCreated has copy, drop {
+        user: address,
+        cdt_amount: u64,
+        sui_amount: u64,
+        timestamp: u64,
+    }
+
+    public struct StrategyRedeemed has copy, drop {
+        user: address,
+        cdt_burned: u64,
+        sui_received: u64,
+        profit: u64,
+        timestamp: u64,
+    }
+
+    // One-time witness for creating treasury cap
+    // public struct CDT has store, copy, drop {}
 
 
+    // Initialize the CDT token
+    public entry fun init_token(ctx: &mut TxContext) {
+        let witness = create_cdt();
+        let (treasury_cap, metadata) = coin::create_currency(
+            witness,
+            6, // decimals
+            b"CDT",
+            b"Constant Growth Token",
+            b"A token representing shares in a constant growth strategy",
+            option::none(),
+            ctx
+        );
+        
+        transfer::public_freeze_object(metadata);
+        transfer::public_transfer(treasury_cap, tx_context::sender(ctx));
+    }
 
-    public fun mint_cdt(
+    // Create a new strategy position by depositing SUI
+    public fun create_strategy(
         treasury: &mut Treasury,
         cap: &mut TreasuryCap<CDT>,
-        amount: u64,
+        payment: Coin<SUI>,
+        clock: &Clock,
         ctx: &mut TxContext
-    ): Coin<CDT> {
+    ): UserStrategy {
+        let sui_amount = coin::value(&payment);
+        let user = tx_context::sender(ctx);
+        let timestamp = clock::timestamp_ms(clock) / 1000;
+
+        // Deposit SUI to treasury
+        treasury::deposit_sui(treasury, payment, clock, ctx);
+
+        // Mint CDT tokens (1:1 ratio for simplicity)
+        let cdt_amount = sui_amount;
+        treasury::increment_cdt_supply(treasury, cdt_amount);
+        let _cdt_coin = coin::mint<CDT>(cap, cdt_amount, ctx);
+        transfer::public_transfer(_cdt_coin, tx_context::sender(ctx));
+
+        // Create user strategy position
+        let strategy = UserStrategy {
+            id: object::new(ctx),
+            owner: user,
+            cdt_amount,
+            sui_deposited: sui_amount,
+            created_at: timestamp,
+        };
+
+        event::emit(StrategyCreated {
+            user,
+            cdt_amount,
+            sui_amount,
+            timestamp,
+        });
+
+        strategy
+    }
+
+    // Redeem strategy position
+    public fun redeem_strategy(
+        treasury: &mut Treasury,
+        cap: &mut TreasuryCap<CDT>,
+        strategy: UserStrategy,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ): Coin<SUI> {
+        // Accrue yield first
+        treasury::accrue_yield(treasury, clock);
+
+        let UserStrategy { 
+            id, 
+            owner, 
+            cdt_amount, 
+            sui_deposited,
+            created_at: _
+        } = strategy;
+
+        assert!(owner == tx_context::sender(ctx), 0);
+
+        // Calculate redemption value based on current treasury value
+        let total_cdt_supply = treasury::get_cdt_supply(treasury);
+        let treasury_balance = treasury::get_balance(treasury);
         
-        increment_cdt_supply(treasury, amount);
-        let cdt_coin = coin::mint<CDT>(cap,amount, ctx);
-        cdt_coin
+        let redemption_value = if (total_cdt_supply > 0) {
+            (cdt_amount * treasury_balance) / total_cdt_supply
+        } else {
+            0
+        };
+
+        // Create CDT coin to burn
+        let cdt_to_burn = coin::mint<CDT>(cap, cdt_amount, ctx);
+        
+        // Burn CDT and get SUI
+        coin::burn(cap, cdt_to_burn);
+        treasury::decrement_cdt_supply(treasury, cdt_amount);
+        
+        let sui_coin = treasury::withdraw_sui(treasury, redemption_value, clock, ctx);
+        
+        let profit = if (redemption_value > sui_deposited) {
+            redemption_value - sui_deposited
+        } else {
+            0
+        };
+
+        let timestamp = clock::timestamp_ms(clock) / 1000;
+        event::emit(StrategyRedeemed {
+            user: owner,
+            cdt_burned: cdt_amount,
+            sui_received: redemption_value,
+            profit,
+            timestamp,
+        });
+
+        object::delete(id);
+        sui_coin
+    }
+
+    // View functions
+    public fun get_strategy_info(strategy: &UserStrategy): (address, u64, u64, u64) {
+        (strategy.owner, strategy.cdt_amount, strategy.sui_deposited, strategy.created_at)
+    }
+
+    // Calculate current strategy value
+    public fun calculate_strategy_value(
+        strategy: &UserStrategy,
+        treasury: &Treasury,
+        clock: &Clock
+    ): u64 {
+        let total_cdt_supply = treasury::get_cdt_supply(treasury);
+        if (total_cdt_supply == 0) return 0;
+        
+        let current_treasury_value = treasury::get_current_value(treasury, clock);
+        (strategy.cdt_amount * current_treasury_value) / total_cdt_supply
     }
 
 
-public fun burn_cdt(
-    treasury: &mut Treasury,
-    cap: &mut TreasuryCap<CDT>,
-    coin: Coin<CDT>,
-) {
-    let amount = coin::value(&coin);
-    coin::burn(cap, coin);
-    decrement_cdt_supply(treasury, amount);
-}
+
+    public entry fun create_cdt(): CDT {
+    CDT {}
 }
 
+}
