@@ -32,6 +32,9 @@ public fun get_cdt_supply(treasury: &Treasury): u64 {
 public fun increment_cdt_supply(treasury: &mut Treasury, amount: u64) {
     treasury.cdt_supply = treasury.cdt_supply + amount;
 }
+public fun decrement_cdt_supply(treasury: &mut Treasury, amount: u64) {
+    treasury.cdt_supply = treasury.cdt_supply - amount;
+}
 
 
 
