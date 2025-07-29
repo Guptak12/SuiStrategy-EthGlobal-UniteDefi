@@ -1,0 +1,99 @@
+ 🚀 SuiStrategy: Protocol Overview
+
+*Inspired by Ethereum's strategy protocol, built natively for the Sui blockchain.*
+
+---
+
+ 🧠 What is SuiStrategy?
+
+SuiStrategy is a next-generation DeFi protocol built on the Sui blockchain. It allows users to gain leveraged exposure to SUI (the native token of Sui) — but without the risk of forced liquidations or complex margin trading.
+
+By combining innovative tools like convertible bonds, cross-chain swaps, and automated execution strategies, SuiStrategy helps build a powerful, on-chain treasury designed for long-term growth.
+
+---
+
+ 🎯 Mission
+
+To build a secure, scalable ecosystem that uses on-chain treasury mechanics to grow wealth for users and the community — all powered by decentralized finance (DeFi) tools and cross-chain liquidity.
+
+---
+
+ 🔍 Key Features
+
+* Convert USDC/ETH to SUI to grow the protocol's treasury
+* Structured debt system using Convertible Debt Tokens (CDTs)
+* SSTR token offers leveraged exposure to SUI without liquidation risk
+* Seamless ETH/USDC ↔ SUI swaps via 1inch Fusion+
+* Advanced order types using 1inch Limit Order Protocol (e.g., TWAP)
+* Lending system using SSTR as collateral
+
+---
+
+ 👤 Who Can Use It?
+
+There are two main types of users:
+
+* SSTR Holders — users who gain when the SUI treasury grows
+* Bond Purchasers — investors who fund the treasury and may convert their investment into SSTR
+
+---
+
+ ⚙️ How It Works
+
+1. Users deposit stablecoins like USDC
+2. They receive two things:
+
+   * A convertible debt token (CDT)
+   * An option NFT that allows future conversion into SSTR
+3. The protocol buys SUI and stores it in the treasury
+4. Users can convert their CDT into SSTR (before expiry) or return it for stablecoins (after expiry)
+
+---
+
+ 📈 Growth Model
+
+* SSTR gains value as treasury grows with more SUI
+* Convertible notes are interest-free, but offer optional upside
+* Lending module lets users borrow SUI by putting up SSTR as collateral
+* Protocol earns yield while protecting its value
+
+---
+
+ 🔗 1inch Integrations
+
+* 1inch Fusion+ enables cross-chain swaps from ETH/USDC → SUI
+* 1inch Limit Order Protocol allows:
+
+  * TWAP (Time-Weighted Average Price) execution
+  * Options-like strategies using NFT + CDT
+  * Automated price-triggered swaps
+
+---
+
+ 🛠️ MVP (What We're Building First)
+
+* Smart contracts for SSTR, CDT, and NFT
+* Basic frontend to interact with bonding system
+* Cross-chain swapping via Fusion+
+* TWAP order execution for the treasury
+* User dashboard showing treasury stats
+
+---
+
+ 📅 Roadmap
+
+* Phase 1: MVP Launch (Week 1)
+* Phase 2: 1inch Limit Order integration (Week 2–3)
+* Phase 3: Lending system and DAO features (Week 4–5)
+* Phase 4: Strategy builder and NFT dashboard (Month 2)
+* Phase 5: Mobile UI, analytics, and partnerships (Q4 2025)
+
+---
+
+ ✅ Summary
+
+SuiStrategy is designed to unlock a smarter way to build and grow on-chain treasuries. With its modular architecture and Sui-native tools, it enables safe, leveraged exposure to SUI without traditional DeFi risks.
+
+Whether you're a user looking for upside, a DAO treasury manager, or a protocol builder — SuiStrategy gives you the tools to participate in the next evolution of DeFi.
+
+**Explore. Contribute. Grow. On-chain.**
