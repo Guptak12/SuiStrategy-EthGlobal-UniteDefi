@@ -86,12 +86,39 @@ This dynamic leads to natural positive pressure on SSTR's value as the treasury 
   * Generates lending yield for the treasury
   * Protects against RFV attacks by creating a market-based defense layer
 
+## SuiStrategy vs ETH Strategy Protocol
+
+| Item                         | **ETH Strategy Protocol**                             | **SuiStrategy**                                                                          |
+| ---------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Network**                  | Ethereum (EVM-based)                                  | Sui (Move-based, high throughput, low fees)                                              |
+| **Base Asset**               | ETH                                                   | SUI                                                                                      |
+| **Leverage Asset**           | STRAT (ERC20)                                         | SSTR (Sui-native coin)                                                                   |
+| **Bond Structure**           | Convertible debt (long/short bonds)                   | Same structure + NFT options + maintains fungible Sui-native format                      |
+| **Swap Functionality**       | None (operates only within ETH ecosystem)             | ✅ **1inch Fusion+ integration**: Enables cross-chain swaps (SUI ↔ ETH / USDC)            |
+| **Strategy Automation**      | Limited (manual rebalancing)                          | ✅ Powered by **1inch Limit Orders**: Enables TWAP, option-style orders, and range orders |
+| **Strategic Scalability**    | STRAT-backed lending via Morpho ETH pool              | ✅ **SSTR-backed SUI lending pool** built natively on Sui                                 |
+| **User Accessibility**       | Primarily for ETH DeFi users                          | ✅ Targets Sui-based retail & institutional users (Grayscale, Fireblocks, etc.)           |
+| **Protocol Revenue Model**   | Generates implied premium through zero-interest bonds | Same model + earns protocol fees through strategic swaps and automation                  |
+| **Scalability & Modularity** | Rigid structure (dependent on Morpho)                 | ✅ Modular strategy setup, 1inch API support, strategy automation vaults                  |
+| **UI/UX Accessibility**      | Basic smart contract interactions                     | ✅ Optimized UI for dashboard, strategy execution, and auto-ordering                      |
+| **External Integrations**    | None                                                  | ✅ Supports 1inch REST/Web3 APIs, cross-chain liquidity, and external data sources        |
+
+### Key Differentiators Summary
+
+| Area                      | SuiStrategy Advantage                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| **Technical Base**        | Leverages Sui’s object-based architecture and fast performance                           |
+| **Cross-chain Liquidity** | Supports SUI ↔ ETH asset swaps via 1inch Fusion+                                         |
+| **Strategic Flexibility** | Enables TWAPs, option orders, and other strategies through 1inch Limit Orders            |
+| **Protocol Growth**       | Combines SUI inflow with decentralized strategy automation, enabling DAO-based expansion |
+| **MVP Feasibility**       | Core components (cross-chain swaps, bond model, vault UI) can be built in 7 days         |
+
 ## Protocol Tokens
 
 | Token          | Type     | Description                                           |
 | -------------- | -------- | ----------------------------------------------------- |
-| **SSTR**       | Sui Coin | Represents leveraged SUI exposure (like STRAT in ETH) |
-| **CDT**        | Sui Coin | Fungible convertible debt token                       |
+| **SSTR**       | Sui      | Represents leveraged SUI exposure (like STRAT in ETH) |
+| **CDT**        | Sui      | Fungible convertible debt token                       |
 | **Option NFT** | NFT      | Non-fungible rights to convert CDT into SSTR          |
 
 ## Integration with 1inch
