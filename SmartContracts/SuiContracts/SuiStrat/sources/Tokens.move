@@ -1,12 +1,8 @@
 module suistrat::token {
-    use sui::object::{Self, UID};
     use sui::coin::{Self, Coin, TreasuryCap};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer;
     use sui::clock::{Self, Clock};
     use sui::event;
     use sui::sui::SUI;
-    use std::option::{Self, Option};
     use suistrat::treasury::{Self, Treasury};
 
     // Token struct
@@ -98,7 +94,6 @@ module suistrat::token {
     }
 
     public fun create_long_bond(treasury: &mut Treasury,
-        cdt_cap: &mut TreasuryCap<CDT>,
         sui_payment: Coin<SUI>,
         strike_price: u64,
         expiry_duration: u64,
@@ -145,127 +140,153 @@ module suistrat::token {
 
 
 
-    // Create a new strategy position by depositing SUI
-    // public fun create_strategy(
-    //     treasury: &mut Treasury,
-    //     cap: &mut TreasuryCap<CDT>,
-    //     payment: Coin<SUI>,
-    //     clock: &Clock,
-    //     ctx: &mut TxContext
-    // ): UserStrategy {
-    //     let sui_amount = coin::value(&payment);
-    //     let user = tx_context::sender(ctx);
-    //     let timestamp = clock::timestamp_ms(clock) / 1000;
+    public fun create_short_bond(
+        treasury: &mut Treasury,
+        strat_cap: &mut TreasuryCap<STRAT>,
+        cdt_cap: &mut TreasuryCap<CDT>,
+        cdt_payment: Coin<CDT>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ): Coin<STRAT> {
+        let cdt_amount = coin::value(&cdt_payment);
+        let user = tx_context::sender(ctx);
+        let timestamp = clock::timestamp_ms(clock) / 1000;
 
-    //     // Deposit SUI to treasury
-    //     treasury::deposit_sui(treasury, payment, clock, ctx);
+        // Burn CDT
+        coin::burn(cdt_cap, cdt_payment);
 
-    //     // Mint CDT tokens (1:1 ratio for simplicity)
-    //     let cdt_amount = sui_amount;
-    //     treasury::increment_cdt_supply(treasury, cdt_amount);
-    //     let _cdt_coin = coin::mint<CDT>(cap, cdt_amount, ctx);
-    //     transfer::public_transfer(_cdt_coin, tx_context::sender(ctx));
-
-    //     // Create user strategy position
-    //     let strategy = UserStrategy {
-    //         id: object::new(ctx),
-    //         owner: user,
-    //         cdt_amount,
-    //         sui_deposited: sui_amount,
-    //         created_at: timestamp,
-    //     };
-
-    //     event::emit(StrategyCreated {
-    //         user,
-    //         cdt_amount,
-    //         sui_amount,
-    //         timestamp,
-    //     });
-
-    //     strategy
-    // }
-
-    // Redeem strategy position
-    // public fun redeem_strategy(
-    //     treasury: &mut Treasury,
-    //     cap: &mut TreasuryCap<CDT>,
-    //     strategy: UserStrategy,
-    //     clock: &Clock,
-    //     ctx: &mut TxContext
-    // ): Coin<SUI> {
-    //     // Accrue yield first
-    //     treasury::accrue_yield(treasury, clock);
-
-    //     let UserStrategy { 
-    //         id, 
-    //         owner, 
-    //         cdt_amount, 
-    //         sui_deposited,
-    //         created_at: _
-    //     } = strategy;
-
-    //     assert!(owner == tx_context::sender(ctx), 0);
-
-    //     // Calculate redemption value based on current treasury value
-    //     let total_cdt_supply = treasury::get_cdt_supply(treasury);
-    //     let treasury_balance = treasury::get_balance(treasury);
+        // Calculate STRAT to issue (market rate based on treasury NAV)
+        let treasury_balance = treasury::get_treasury_balance(treasury);
+        let total_strat = treasury::get_total_strat_issued(treasury);
         
-    //     let redemption_value = if (total_cdt_supply > 0) {
-    //         (cdt_amount * treasury_balance) / total_cdt_supply
-    //     } else {
-    //         0
-    //     };
+        // Simple pricing: STRAT amount based on current NAV
+        let strat_amount = if (total_strat == 0) {
+            cdt_amount // Bootstrap case
+        } else {
+            (cdt_amount * total_strat) / treasury_balance
+        };
 
-    //     // Create CDT coin to burn
-    //     let cdt_to_burn = coin::mint<CDT>(cap, cdt_amount, ctx);
-        
-    //     // Burn CDT and get SUI
-    //     coin::burn(cap, cdt_to_burn);
-    //     treasury::decrement_cdt_supply(treasury, cdt_amount);
-        
-    //     let sui_coin = treasury::withdraw_sui(treasury, redemption_value, clock, ctx);
-        
-    //     let profit = if (redemption_value > sui_deposited) {
-    //         redemption_value - sui_deposited
-    //     } else {
-    //         0
-    //     };
+        treasury::reduce_debt(treasury, cdt_amount, strat_amount, clock, ctx);
+        let strat_coin = coin::mint(strat_cap, strat_amount, ctx);
 
-    //     let timestamp = clock::timestamp_ms(clock) / 1000;
-    //     event::emit(StrategyRedeemed {
-    //         user: owner,
-    //         cdt_burned: cdt_amount,
-    //         sui_received: redemption_value,
-    //         profit,
-    //         timestamp,
-    //     });
+        event::emit(ShortBondCreated {
+            user,
+            cdt_burned: cdt_amount,
+            strat_received: strat_amount,
+            timestamp,
+        });
 
-    //     object::delete(id);
-    //     sui_coin
-    // }
+        strat_coin
+    }
+
+     public fun exercise_option(
+        treasury: &mut Treasury,
+        strat_cap: &mut TreasuryCap<STRAT>,
+        cdt_cap: &mut TreasuryCap<CDT>,
+        option_nft: OptionNFT,
+        cdt_payment: Coin<CDT>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ): Coin<STRAT> {
+        let current_time = clock::timestamp_ms(clock) / 1000;
+        let user = tx_context::sender(ctx);
+
+        // Verify option is valid and not expired
+        assert!(option_nft.holder == user, 1);
+        assert!(current_time <= option_nft.expiry, 2);
+        assert!(current_time >= option_nft.activation_time, 3);
+        
+        let cdt_amount = coin::value(&cdt_payment);
+        assert!(cdt_amount >= option_nft.original_cdt_amount, 4);
+
+        // Burn CDT
+        coin::burn(cdt_cap, cdt_payment);
+
+        // Calculate STRAT based on strike price
+        let strat_amount = (option_nft.original_cdt_amount * option_nft.strike_price) / 1000000; // Assuming 6 decimal precision
+
+        // Process conversion
+        let sui_coin = treasury::process_conversion(treasury, cdt_amount, 0, strat_amount, clock, ctx);
+        coin::destroy_zero(sui_coin);
+        let strat_coin = coin::mint(strat_cap, strat_amount, ctx);
+
+        let option_id = object::uid_to_address(&option_nft.id);
+        event::emit(OptionExercised {
+            user,
+            option_id,
+            cdt_amount: option_nft.original_cdt_amount,
+            strat_received: strat_amount,
+            timestamp: current_time,
+        });
+
+        // Destroy option NFT
+        let OptionNFT { id, strike_price: _, expiry: _, activation_time: _, original_cdt_amount: _, holder: _ } = option_nft;
+        object::delete(id);
+
+        strat_coin
+    }
+
+
+   public fun redeem_expired_option(
+        treasury: &mut Treasury,
+        cdt_cap: &mut TreasuryCap<CDT>,
+        option_nft: OptionNFT,
+        cdt_payment: Coin<CDT>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ): Coin<SUI> {
+        let current_time = clock::timestamp_ms(clock) / 1000;
+        let user = tx_context::sender(ctx);
+
+        // Verify option is expired
+        assert!(option_nft.holder == user, 1);
+        assert!(current_time > option_nft.expiry, 2);
+        
+        let cdt_amount = coin::value(&cdt_payment);
+        assert!(cdt_amount >= option_nft.original_cdt_amount, 3);
+
+        // Burn CDT
+        coin::burn(cdt_cap, cdt_payment);
+
+        // Calculate SUI redemption value (original USD value)
+        let sui_amount = option_nft.original_cdt_amount; // 1:1 redemption
+
+        // Process conversion and get SUI
+        let sui_coin = treasury::process_conversion(treasury, cdt_amount, 1, sui_amount, clock, ctx);
+        
+
+        let option_id = object::uid_to_address(&option_nft.id);
+        event::emit(OptionExpired {
+            user,
+            option_id,
+            cdt_amount: option_nft.original_cdt_amount,
+            sui_received: sui_amount,
+            timestamp: current_time,
+        });
+
+        // Destroy option NFT
+        let OptionNFT { id, strike_price: _, expiry: _, activation_time: _, original_cdt_amount: _, holder: _ } = option_nft;
+        object::delete(id);
+
+        sui_coin
+    }
 
     // View functions
-    public fun get_strategy_info(strategy: &UserStrategy): (address, u64, u64, u64) {
-        (strategy.owner, strategy.cdt_amount, strategy.sui_deposited, strategy.created_at)
+    public fun get_option_info(option: &OptionNFT): (u64, u64, u64, u64, address) {
+        (option.strike_price, option.expiry, option.activation_time, option.original_cdt_amount, option.holder)
     }
 
-    // Calculate current strategy value
-    public fun calculate_strategy_value(
-        strategy: &UserStrategy,
-        treasury: &Treasury,
-        clock: &Clock
-    ): u64 {
-        let total_cdt_supply = treasury::get_cdt_supply(treasury);
-        if (total_cdt_supply == 0) return 0;
-        
-        let current_treasury_value = treasury::get_current_value(treasury, clock);
-        (strategy.cdt_amount * current_treasury_value) / total_cdt_supply
+    public fun get_bond_position_info(position: &LongBondPosition): (address, u64, u64, u64, bool) {
+        (position.holder, position.cdt_amount, position.sui_deposited, position.created_at, position.has_option_nft)
     }
 
+    public fun is_option_exercisable(option: &OptionNFT, clock: &Clock): bool {
+        let current_time = clock::timestamp_ms(clock) / 1000;
+        current_time >= option.activation_time && current_time <= option.expiry
+    }
 
-
-    public entry fun create_cdt(): CDT {
-    CDT {}
-}
-
+    public fun is_option_expired(option: &OptionNFT, clock: &Clock): bool {
+        let current_time = clock::timestamp_ms(clock) / 1000;
+        current_time > option.expiry
+    }
 }

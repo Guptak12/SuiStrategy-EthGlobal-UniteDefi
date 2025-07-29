@@ -17,14 +17,7 @@ module suistrat::treasury {
         total_yield_generated: u64,         
         protocol_revenue: u64,             
     }
-    //Events
- public struct YieldGenerated has copy, drop {
-        amount: u64,
-        new_balance: u64,
-        timestamp: u64,
-    }
 
-    
 
     public struct TreasuryExpanded has copy, drop {
         sui_added: u64,
@@ -59,39 +52,6 @@ module suistrat::treasury {
         transfer::share_object(treasury);
     }
 
-    // Deposit SUI to treasury
-    // public fun deposit_sui(treasury: &mut Treasury, payment: Coin<SUI>, clock: &Clock, ctx: &TxContext) {
-    //     let amount = coin::value(&payment);
-    //     balance::join(&mut treasury.balance, coin::into_balance(payment));
-        
-    //     let timestamp = clock::timestamp_ms(clock) / 1000;
-    //     if (treasury.last_update == 0) {
-    //         treasury.last_update = timestamp;
-    //     };
-
-    //     event::emit(Deposited {
-    //         user: tx_context::sender(ctx),
-    //         amount,
-    //         timestamp,
-    //     });
-    // }
-
-     // Withdraw SUI from treasury (only for burning CDT)
-    // public(package) fun withdraw_sui(treasury: &mut Treasury, amount: u64, clock: &Clock, ctx: &mut TxContext): Coin<SUI> {
-    //     update_treasury_value(treasury, option::none(),clock);
-        
-    //     let withdrawal_balance = balance::split(&mut treasury.balance, amount);
-    //     let withdrawal_coin = coin::from_balance(withdrawal_balance, ctx);
-        
-    //     let timestamp = clock::timestamp_ms(clock) / 1000;
-    //     event::emit(Withdrawn {
-    //         user: tx_context::sender(ctx),
-    //         amount,
-    //         timestamp,
-    //     });
-
-    //     withdrawal_coin
-    // }
 
      public(package) fun expand_treasury(
         treasury: &mut Treasury, 
@@ -116,41 +76,7 @@ module suistrat::treasury {
         });
     }
 
-     // Update treasury value with constant growth rate
-    // fun update_treasury_value(treasury: &mut Treasury, clock: &Clock) {
-    //     let current_time = clock::timestamp_ms(clock) / 1000;
-        
-    //     if (treasury.last_update == 0) {
-    //         treasury.last_update = current_time;
-    //         return
-    //     };
 
-    //     let time_elapsed = current_time - treasury.last_update;
-    //     if (time_elapsed == 0) return;
-
-    //     let current_balance = balance::value(&treasury.balance);
-    //     if (current_balance == 0) {
-    //         treasury.last_update = current_time;
-    //         return
-    //     };
-    //     let seconds_per_year = 31536000u64; // 365 * 24 * 60 * 60
-    //     let yield_amount = (current_balance * treasury.growth_rate * time_elapsed) / (10000 * seconds_per_year);
-
-    //     if (yield_amount > 0) {
-    //         // Create yield and add to balance
-    //         let yield_balance = balance::create_for_testing<SUI>(yield_amount);
-    //         balance::join(&mut treasury.balance, yield_balance);
-    //         treasury.total_yield_generated = treasury.total_yield_generated + yield_amount;
-
-    //         event::emit(YieldGenerated {
-    //             amount: yield_amount,
-    //             new_balance: balance::value(&treasury.balance),
-    //             timestamp: current_time,
-    //         });
-    //     };
-
-    //     treasury.last_update = current_time;
-    // }
 
     public(package) fun reduce_debt(
         treasury: &mut Treasury,
@@ -180,18 +106,18 @@ module suistrat::treasury {
         payout_amount: u64,
         clock: &Clock,
         ctx: &mut TxContext
-    ): Option<Coin<SUI>> {
+    ): Coin<SUI> {
         accrue_yield(treasury, clock);
         
         treasury.total_cdt_issued = treasury.total_cdt_issued - cdt_amount;
         
         if (conversion_type == 1) { // Convert to SUI
             let withdrawal_balance = balance::split(&mut treasury.sui_balance, payout_amount);
-            let sui_coin = coin::from_balance(withdrawal_balance, ctx);
-            option::some(sui_coin)
+            coin::from_balance(withdrawal_balance, ctx)
+            
         } else { // Convert to STRAT
             treasury.total_strat_issued = treasury.total_strat_issued + payout_amount;
-            option::none()
+            coin::zero<SUI>(ctx)
         }
     }
 
@@ -217,15 +143,9 @@ module suistrat::treasury {
     let yield_amount = (current_balance * treasury.growth_rate * time_elapsed)/ (10000 * seconds_per_year);
 
     if (yield_amount > 0) {
-         let yield_balance = balance::create_for_testing<SUI>(yield_amount);
-            balance::join(&mut treasury.sui_balance, yield_balance);
+        //we are just calculating new yield, not add new sui to treasury, this will be done through tests
             treasury.total_yield_generated = treasury.total_yield_generated + yield_amount;
 
-            event::emit(YieldGenerated {
-                amount: yield_amount,
-                new_balance: balance::value(&treasury.sui_balance),
-                timestamp: current_time,
-            });
     };
     treasury.last_update = current_time;
 }

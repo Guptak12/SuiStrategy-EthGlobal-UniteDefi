@@ -8,65 +8,58 @@
 //     use sui::clock::{Self, Clock};
 //     use sui::balance::{Self, Balance};
 
-//     // #[test_only]
-//     // fun test_mint_and_burn() {
-//     //     let mut scenario = test_scenario::begin(@0x1);
-//     //     let mut cap = {
-//     //         let ctx = test_scenario::ctx(&mut scenario);
-
-//     //         init_treasury(ctx);
-
-//     //         coin::create_treasury_cap_for_testing<CDT>(ctx)
-//     //     };
-
-//     //     test_scenario::next_tx(&mut scenario, @0x1);
-//     //     let mut treasury = test_scenario::take_shared<treasury::Treasury>(&scenario);
-//     //     let cdt_coin = mint_cdt(&mut treasury, &mut cap, 100, test_scenario::ctx(&mut scenario));
-//     //     assert!(value<CDT>(&cdt_coin) == 100);
-
-//     //     let supply = get_cdt_supply(&treasury);
-//     //     assert!(supply == 100);
-
-//     //     let mut cdt_coin_mut = cdt_coin;
-//     //     let burn_part = split(&mut cdt_coin_mut, 40, test_scenario::ctx(&mut scenario));
-//     //     burn_cdt(&mut treasury, &mut cap, burn_part);
-
-//     //     let new_supply = get_cdt_supply(&treasury);
-//     //     assert!(new_supply == 60);
-
-//     //     transfer::public_transfer(cdt_coin_mut, tx_context::sender(test_scenario::ctx(&mut scenario)));
-//     //     test_scenario::return_to_sender(&scenario,cap);
-//     //     test_scenario::return_to_sender(&scenario, treasury);
+//   #[test]
+//     fun test_expired_option_redemption() {
+//         let mut scenario = test_scenario::begin(ADMIN);
+//         let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         
-//     //     test_scenario::end(scenario);
-//     // }
+//         // Setup
+//         treasury::init_treasury(test_scenario::ctx(&mut scenario));
+//         tokens::init_cdt(test_scenario::ctx(&mut scenario));
+//         test_scenario::next_tx(&mut scenario, ADMIN);
 
-//     #[test_only]
-// fun simulate_update_treasury_value(treasury: &mut Treasury, clock: &Clock) {
-//     let current_balance = balance::value(&treasury.balance);
-//     let current_time = clock::timestamp_ms(clock) / 1000;
+//         let mut cdt_cap = test_scenario::take_from_sender<TreasuryCap<CDT>>(&scenario);
+//         let mut treasury = test_scenario::take_shared<Treasury>(&scenario);
 
-//     if (treasury.last_update == 0) {
-//         treasury.last_update = current_time;
-//         return;
-//     };
+//         // Create long bond
+//         test_scenario::next_tx(&mut scenario, USER1);
+//         let sui_payment = coin::mint_for_testing<sui::sui::SUI>(1000, test_scenario::ctx(&mut scenario));
+//         let (bond_position, option_nft) = tokens::create_long_bond(
+//             &mut treasury,
+//             &mut cdt_cap,
+//             sui_payment,
+//             1200000,
+//             3600, // 1 hour expiry
+//             &clock,
+//             test_scenario::ctx(&mut scenario)
+//         );
 
-//     let time_elapsed = current_time - treasury.last_update;
-//     if (time_elapsed == 0 || current_balance == 0) {
-//         treasury.last_update = current_time;
-//         return;
-//     };
+//         // Fast forward past expiry
+//         clock::increment_for_testing(&mut clock, 7200000); // 2 hours
 
-//     let seconds_per_year = 31_536_000u64;
-//     let yield_amount = (current_balance * treasury.growth_rate * time_elapsed)
-//         / (10000 * seconds_per_year);
+//         // Redeem expired option
+//         let cdt_for_redemption = coin::mint_for_testing<CDT>(1000, test_scenario::ctx(&mut scenario));
+//         let sui_redeemed = tokens::redeem_expired_option(
+//             &mut treasury,
+//             &mut cdt_cap,
+//             option_nft,
+//             cdt_for_redemption,
+//             &clock,
+//             test_scenario::ctx(&mut scenario)
+//         );
 
-//     if (yield_amount > 0) {
-//         let fake_sui = test_scenario::create_fake_coin<SUI>(yield_amount);
-//         TreasuryBond::update_treasury_value(treasury, option::some(fake_sui), clock);
-//     } else {
-//         TreasuryBond::update_treasury_value(treasury, option::none<balance::Balance<SUI>>(), clock);
+//         // Verify redemption
+//         assert!(coin::value(&sui_redeemed) == 1000, 0);
+
+//         // Clean up
+//         coin::burn_for_testing(sui_redeemed);
+//         let LongBondPosition { id, holder: _, cdt_amount: _, sui_deposited: _, created_at: _, has_option_nft: _ } = bond_position;
+//         object::delete(id);
+
+//         test_scenario::return_to_sender(&scenario, cdt_cap);
+//         test_scenario::return_shared(treasury);
+//         clock::destroy_for_testing(clock);
+//         test_scenario::end(scenario);
 //     }
-// }
 
 // }
