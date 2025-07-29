@@ -1,4 +1,4 @@
-module suistrat::token {
+module suistrat::tokens {
     use sui::coin::{Self, Coin, TreasuryCap};
     use sui::clock::{Self, Clock};
     use sui::event;
@@ -288,5 +288,18 @@ module suistrat::token {
     public fun is_option_expired(option: &OptionNFT, clock: &Clock): bool {
         let current_time = clock::timestamp_ms(clock) / 1000;
         current_time > option.expiry
+    }
+
+     #[test_only]
+    public fun destroy_bond_position_for_testing(position: LongBondPosition) {
+        let LongBondPosition { 
+            id, 
+            holder: _, 
+            cdt_amount: _, 
+            sui_deposited: _, 
+            created_at: _, 
+            has_option_nft: _ 
+        } = position;
+        object::delete(id);
     }
 }
