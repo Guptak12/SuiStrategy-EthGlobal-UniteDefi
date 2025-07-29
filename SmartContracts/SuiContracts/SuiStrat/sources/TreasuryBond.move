@@ -1,22 +1,24 @@
 module suistrat::treasury {
-    use sui::object::{Self, UID};
+     use sui::object::{Self, UID};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
-    use sui::tx_context::TxContext;
+    use sui::tx_context::{Self, TxContext};
     use sui::transfer;
     use sui::clock::{Self, Clock};
     use sui::event;
+    use std::option::{Self, Option};
 
       public struct Treasury has key, store {
         id: UID,
-        balance: Balance<SUI>,
-        cdt_supply: u64,
-        growth_rate: u64,
-        last_update: u64,
-        total_yield_generated: u64,
+        sui_balance: Balance<SUI>,          
+        total_cdt_issued: u64,              
+        total_strat_issued: u64,            
+        growth_rate: u64,                   
+        last_update: u64,                   
+        total_yield_generated: u64,         
+        protocol_revenue: u64,             
     }
-
     //Events
  public struct YieldGenerated has copy, drop {
         amount: u64,
@@ -36,52 +38,94 @@ module suistrat::treasury {
         timestamp: u64,
     }
 
+    public struct TreasuryExpanded has copy, drop {
+        sui_added: u64,
+        cdt_issued: u64,
+        new_treasury_size: u64,
+        timestamp: u64,
+    } 
+
+
+
+    public struct DeptReducted has copy, drop {
+        cdt_burned: u64,
+        strat_issued: u64,
+        new_debt_level: u64,
+        timestamp: u64,
+    }
+
 
     // Initialize treasury
     public entry fun init_treasury(ctx: &mut TxContext) {
         let treasury = Treasury {
             id: object::new(ctx),
-            balance: balance::zero<SUI>(),
-            cdt_supply: 0,
+            sui_balance: balance::zero<SUI>(),
+            total_cdt_issued: 0,
             growth_rate: 500, // 5% annual growth
             last_update: 0,
             total_yield_generated: 0,
+            protocol_revenue: 0,
+            total_strat_issued: 0,
+
         };
         transfer::share_object(treasury);
     }
 
     // Deposit SUI to treasury
-    public fun deposit_sui(treasury: &mut Treasury, payment: Coin<SUI>, clock: &Clock, ctx: &TxContext) {
-        let amount = coin::value(&payment);
-        balance::join(&mut treasury.balance, coin::into_balance(payment));
+    // public fun deposit_sui(treasury: &mut Treasury, payment: Coin<SUI>, clock: &Clock, ctx: &TxContext) {
+    //     let amount = coin::value(&payment);
+    //     balance::join(&mut treasury.balance, coin::into_balance(payment));
         
-        let timestamp = clock::timestamp_ms(clock) / 1000;
-        if (treasury.last_update == 0) {
-            treasury.last_update = timestamp;
-        };
+    //     let timestamp = clock::timestamp_ms(clock) / 1000;
+    //     if (treasury.last_update == 0) {
+    //         treasury.last_update = timestamp;
+    //     };
 
-        event::emit(Deposited {
-            user: tx_context::sender(ctx),
-            amount,
-            timestamp,
-        });
-    }
+    //     event::emit(Deposited {
+    //         user: tx_context::sender(ctx),
+    //         amount,
+    //         timestamp,
+    //     });
+    // }
 
      // Withdraw SUI from treasury (only for burning CDT)
-    public(package) fun withdraw_sui(treasury: &mut Treasury, amount: u64, clock: &Clock, ctx: &mut TxContext): Coin<SUI> {
-        update_treasury_value(treasury, option::none(),clock);
+    // public(package) fun withdraw_sui(treasury: &mut Treasury, amount: u64, clock: &Clock, ctx: &mut TxContext): Coin<SUI> {
+    //     update_treasury_value(treasury, option::none(),clock);
         
-        let withdrawal_balance = balance::split(&mut treasury.balance, amount);
-        let withdrawal_coin = coin::from_balance(withdrawal_balance, ctx);
+    //     let withdrawal_balance = balance::split(&mut treasury.balance, amount);
+    //     let withdrawal_coin = coin::from_balance(withdrawal_balance, ctx);
+        
+    //     let timestamp = clock::timestamp_ms(clock) / 1000;
+    //     event::emit(Withdrawn {
+    //         user: tx_context::sender(ctx),
+    //         amount,
+    //         timestamp,
+    //     });
+
+    //     withdrawal_coin
+    // }
+
+     public(package) fun expand_treasury(
+        treasury: &mut Treasury, 
+        sui_payment: Coin<SUI>, 
+        cdt_amount: u64,
+        clock: &Clock,
+        ctx: &TxContext
+    ) {
+        accrue_yield(treasury, clock);
+        
+        let sui_amount = coin::value(&sui_payment);
+        balance::join(&mut treasury.sui_balance, coin::into_balance(sui_payment));
+        
+        treasury.total_cdt_issued = treasury.total_cdt_issued + cdt_amount;
         
         let timestamp = clock::timestamp_ms(clock) / 1000;
-        event::emit(Withdrawn {
-            user: tx_context::sender(ctx),
-            amount,
+        event::emit(TreasuryExpanded {
+            sui_added: sui_amount,
+            cdt_issued: cdt_amount,
+            new_treasury_size: balance::value(&treasury.sui_balance),
             timestamp,
         });
-
-        withdrawal_coin
     }
 
      // Update treasury value with constant growth rate
