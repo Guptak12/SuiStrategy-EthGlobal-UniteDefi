@@ -37,7 +37,7 @@ module suistrat::treasury {
 
 
     // Initialize treasury
-    public entry fun init_treasury(ctx: &mut TxContext) {
+    fun init(ctx: &mut TxContext){
         let treasury = Treasury {
             id: object::new(ctx),
             sui_balance: balance::zero<SUI>(),
@@ -50,6 +50,7 @@ module suistrat::treasury {
 
         };
         transfer::share_object(treasury);
+        // treasury
     }
 
 

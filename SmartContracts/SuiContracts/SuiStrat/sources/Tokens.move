@@ -4,11 +4,10 @@ module suistrat::tokens {
     use sui::event;
     use sui::sui::SUI;
     use suistrat::treasury::{Self, Treasury};
+    use suistrat::cdt::CDT;
+    use suistrat::strat::STRAT;
 
-    // Token struct
-    public struct CDT has store,copy,drop {}
-
-    public struct STRAT has store,copy,drop {}
+    // Token types are imported from their respective modules
 
     public struct OptionNFT has key, store {
         id: UID,
@@ -60,45 +59,12 @@ module suistrat::tokens {
         timestamp: u64,
     }
 
-
-  
-
- 
-    public entry fun init_cdt(ctx: &mut TxContext) {
-        let (treasury_cap, metadata) = coin::create_currency(
-            CDT {},
-            6, 
-            b"CDT",
-            b"Convertible Debt Token",
-            b"A token representing protocol liabilities",
-            option::none(),
-            ctx
-        );
-        
-        transfer::public_freeze_object(metadata);
-        transfer::public_transfer(treasury_cap, tx_context::sender(ctx));
-    }
-
-    public entry fun init_strat(ctx: &mut TxContext) {
-        let (treasury_cap, metadata) = coin::create_currency(
-            STRAT {},
-            6,
-            b"STRAT",
-            b"Strategy Token",
-            b"Leveraged SUI exposure token representing equity in the protocol",
-            option::none(),
-            ctx
-        );
-        transfer::public_freeze_object(metadata);
-        transfer::public_transfer(treasury_cap, tx_context::sender(ctx));
-    }
-
     public fun create_long_bond(treasury: &mut Treasury,
         sui_payment: Coin<SUI>,
         strike_price: u64,
         expiry_duration: u64,
         clock: &Clock,
-        ctx: &mut TxContext): (LongBondPosition, OptionNFT) {
+        ctx: &mut TxContext) {
             let sui_amount = coin::value(&sui_payment);
         let user = tx_context::sender(ctx);
         let timestamp = clock::timestamp_ms(clock) / 1000;
@@ -135,7 +101,8 @@ module suistrat::tokens {
             timestamp,
         });
 
-        (position, option_nft)
+        transfer::transfer(option_nft, user);
+        transfer::transfer(position, user)
     }
 
 
