@@ -1,13 +1,11 @@
 module suistrat::treasury {
-     use sui::object::{Self, UID};
+    //  use sui::object::{Self, UID};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer;
+    // use sui::tx_context::{Self, TxContext};
     use sui::clock::{Self, Clock};
     use sui::event;
-    use std::option::{Self, Option};
 
       public struct Treasury has key, store {
         id: UID,
@@ -26,17 +24,7 @@ module suistrat::treasury {
         timestamp: u64,
     }
 
-    public struct Deposited has copy, drop {
-        user: address,
-        amount: u64,
-        timestamp: u64,
-    }
-
-    public struct Withdrawn has copy, drop {
-        user: address,
-        amount: u64,
-        timestamp: u64,
-    }
+    
 
     public struct TreasuryExpanded has copy, drop {
         sui_added: u64,
@@ -47,7 +35,7 @@ module suistrat::treasury {
 
 
 
-    public struct DeptReducted has copy, drop {
+    public struct DebtReduced has copy, drop {
         cdt_burned: u64,
         strat_issued: u64,
         new_debt_level: u64,
@@ -110,7 +98,7 @@ module suistrat::treasury {
         sui_payment: Coin<SUI>, 
         cdt_amount: u64,
         clock: &Clock,
-        ctx: &TxContext
+        _ctx: &TxContext
     ) {
         accrue_yield(treasury, clock);
         
@@ -164,67 +152,96 @@ module suistrat::treasury {
     //     treasury.last_update = current_time;
     // }
 
-    public fun update_treasury_value(treasury: &mut Treasury, mut yield_balance: Option<balance::Balance<SUI>>, clock: &Clock) {
+    public(package) fun reduce_debt(
+        treasury: &mut Treasury,
+        cdt_amount: u64,
+        strat_amount: u64,
+        clock: &Clock,
+        _ctx: &TxContext
+    ) {
+        accrue_yield(treasury, clock);
+        
+        treasury.total_cdt_issued = treasury.total_cdt_issued - cdt_amount;
+        treasury.total_strat_issued = treasury.total_strat_issued + strat_amount;
+        
+        let timestamp = clock::timestamp_ms(clock) / 1000;
+        event::emit(DebtReduced {
+            cdt_burned: cdt_amount,
+            strat_issued: strat_amount,
+            new_debt_level: treasury.total_cdt_issued,
+            timestamp,
+        });
+    }
+
+    public(package) fun process_conversion(
+        treasury: &mut Treasury,
+        cdt_amount: u64,
+        conversion_type: u8, // 0 = to STRAT, 1 = to SUI
+        payout_amount: u64,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ): Option<Coin<SUI>> {
+        accrue_yield(treasury, clock);
+        
+        treasury.total_cdt_issued = treasury.total_cdt_issued - cdt_amount;
+        
+        if (conversion_type == 1) { // Convert to SUI
+            let withdrawal_balance = balance::split(&mut treasury.sui_balance, payout_amount);
+            let sui_coin = coin::from_balance(withdrawal_balance, ctx);
+            option::some(sui_coin)
+        } else { // Convert to STRAT
+            treasury.total_strat_issued = treasury.total_strat_issued + payout_amount;
+            option::none()
+        }
+    }
+
+    public fun accrue_yield(treasury: &mut Treasury, clock: &Clock) {
     let current_time = clock::timestamp_ms(clock) / 1000;
 
     if (treasury.last_update == 0) {
         treasury.last_update = current_time;
-        option::destroy_none(yield_balance);
         return
     };
 
     let time_elapsed = current_time - treasury.last_update;
 
-    if (time_elapsed == 0) {
-        option::destroy_none(yield_balance);
+    if (time_elapsed == 0) return;
+
+    let current_balance = balance::value(&treasury.sui_balance);
+    if (current_balance == 0) {
+        treasury.last_update = current_time;
         return
     };
 
-    let current_balance = balance::value(&treasury.balance);
-    if (current_balance == 0) {
-        treasury.last_update = current_time;
-        option::destroy_none(yield_balance);
-
-        return;
-    };
-
     let seconds_per_year = 31_536_000u64;
-    let yield_amount = (current_balance * treasury.growth_rate * time_elapsed)
-        / (10000 * seconds_per_year);
+    let yield_amount = (current_balance * treasury.growth_rate * time_elapsed)/ (10000 * seconds_per_year);
 
-    if (yield_amount > 0 && option::is_some(&yield_balance)) {
-        let yield_b = option::extract(&mut yield_balance);
-        balance::join(&mut treasury.balance, yield_b);
-        treasury.total_yield_generated = treasury.total_yield_generated + yield_amount;
+    if (yield_amount > 0) {
+         let yield_balance = balance::create_for_testing<SUI>(yield_amount);
+            balance::join(&mut treasury.sui_balance, yield_balance);
+            treasury.total_yield_generated = treasury.total_yield_generated + yield_amount;
 
-        event::emit(YieldGenerated {
-            amount: yield_amount,
-            new_balance: balance::value(&treasury.balance),
-            timestamp: current_time,
-        });
+            event::emit(YieldGenerated {
+                amount: yield_amount,
+                new_balance: balance::value(&treasury.sui_balance),
+                timestamp: current_time,
+            });
     };
-    option::destroy_none(yield_balance);
-
-
     treasury.last_update = current_time;
 }
 
-    // Package functions for token module
-    public(package) fun increment_cdt_supply(treasury: &mut Treasury, amount: u64) {
-        treasury.cdt_supply = treasury.cdt_supply + amount;
-    }
-
-    public(package) fun decrement_cdt_supply(treasury: &mut Treasury, amount: u64) {
-        treasury.cdt_supply = treasury.cdt_supply - amount;
-    }
+    
 
     // View functions
-    public fun get_cdt_supply(treasury: &Treasury): u64 {
-        treasury.cdt_supply
+    public fun get_total_cdt_issued(treasury: &Treasury): u64 {
+        treasury.total_cdt_issued
     }
 
-    public fun get_balance(treasury: &Treasury): u64 {
-        balance::value(&treasury.balance)
+public fun get_total_strat_issued(treasury: &Treasury): u64 {
+        treasury.total_strat_issued
+    }
+    public fun get_treasury_balance(treasury: &Treasury): u64 {
+        balance::value(&treasury.sui_balance)
     }
 
     public fun get_growth_rate(treasury: &Treasury): u64 {
@@ -235,29 +252,20 @@ module suistrat::treasury {
         treasury.total_yield_generated
     }
 
-    // Update growth rate (admin function)
-    public fun set_growth_rate(treasury: &mut Treasury, new_rate: u64, _ctx: &TxContext) {
-        treasury.growth_rate = new_rate;
+    
+    
+    public fun get_protocol_stats(treasury: &Treasury): (u64, u64, u64, u64) {
+        (
+            balance::value(&treasury.sui_balance),
+            treasury.total_cdt_issued,
+            treasury.total_strat_issued,
+            treasury.total_yield_generated
+        )
     }
 
-    // Manual yield update trigger
-    public fun accrue_yield(treasury: &mut Treasury, clock: &Clock) {
-        update_treasury_value(treasury, option::none(), clock);
-    }
-
-    // Calculate current value with pending yield
-    public fun get_current_value(treasury: &Treasury, clock: &Clock): u64 {
-        let current_time = clock::timestamp_ms(clock) / 1000;
-        let time_elapsed = current_time - treasury.last_update;
-        let current_balance = balance::value(&treasury.balance);
-        
-        if (time_elapsed == 0 || current_balance == 0) {
-            return current_balance
-        };
-
-        let seconds_per_year = 31536000u64;
-        let pending_yield = (current_balance * treasury.growth_rate * time_elapsed) / (10000 * seconds_per_year);
-        current_balance + pending_yield
+    public fun get_nav_per_strat(treasury: &Treasury): u64 {
+        if (treasury.total_strat_issued == 0) return 0;
+        balance::value(&treasury.sui_balance) / treasury.total_strat_issued
     }
 
 
