@@ -60,6 +60,7 @@ module suistrat::tokens {
     }
 
     public fun create_long_bond(treasury: &mut Treasury,
+        cdt_cap: &mut TreasuryCap<CDT>,
         sui_payment: Coin<SUI>,
         strike_price: u64,
         expiry_duration: u64,
@@ -100,6 +101,9 @@ module suistrat::tokens {
             option_id,
             timestamp,
         });
+        let cdt_coin = coin::mint<CDT>(cdt_cap, cdt_amount, ctx);
+        transfer::public_transfer(cdt_coin, user);
+
 
         transfer::transfer(option_nft, user);
         transfer::transfer(position, user)
