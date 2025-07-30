@@ -1,6 +1,5 @@
 module suistrat::strat {
     use sui::coin;
-
     // One-time witness for STRAT currency
     public struct STRAT has drop {}
 
@@ -17,6 +16,8 @@ module suistrat::strat {
         );
         
         transfer::public_freeze_object(metadata);
-        transfer::public_transfer(treasury_cap, tx_context::sender(ctx));
+        // transfer::share_object(&treasury_cap);
+
+        transfer::public_share_object(treasury_cap);
     }
 }

@@ -2,10 +2,11 @@ module suistrat::treasury {
     //  use sui::object::{Self, UID};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
-    use sui::coin::{Self, Coin};
+    use sui::coin::{Self, Coin,TreasuryCap};
     // use sui::tx_context::{Self, TxContext};
     use sui::clock::{Self, Clock};
     use sui::event;
+    
 
       public struct Treasury has key, store {
         id: UID,
@@ -52,6 +53,8 @@ module suistrat::treasury {
         transfer::share_object(treasury);
         // treasury
     }
+
+  
 
 
      public(package) fun expand_treasury(

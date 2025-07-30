@@ -59,8 +59,8 @@ module suistrat::tokens {
         timestamp: u64,
     }
 
-    public fun create_long_bond(treasury: &mut Treasury,
-        cdt_cap: &mut TreasuryCap<CDT>,
+    public entry fun create_long_bond(treasury: &mut Treasury,
+    cdt_cap: &mut TreasuryCap<CDT>,
         sui_payment: Coin<SUI>,
         strike_price: u64,
         expiry_duration: u64,
@@ -71,6 +71,8 @@ module suistrat::tokens {
         let timestamp = clock::timestamp_ms(clock) / 1000;
 
         let cdt_amount = sui_amount;
+        // let cdt_cap = coin::treasury_cap<CDT>();
+        // let strat_cap = coin::treasury_cap<STRAT>();
 
         treasury::expand_treasury(treasury, sui_payment, cdt_amount, clock, ctx);
 
@@ -111,18 +113,19 @@ module suistrat::tokens {
 
 
 
-    public fun create_short_bond(
+    public entry fun create_short_bond(
         treasury: &mut Treasury,
-        strat_cap: &mut TreasuryCap<STRAT>,
         cdt_cap: &mut TreasuryCap<CDT>,
+    strat_cap: &mut TreasuryCap<STRAT>,
         cdt_payment: Coin<CDT>,
         clock: &Clock,
         ctx: &mut TxContext
-    ): Coin<STRAT> {
+    ) {
         let cdt_amount = coin::value(&cdt_payment);
         let user = tx_context::sender(ctx);
         let timestamp = clock::timestamp_ms(clock) / 1000;
-
+        // let cdt_cap = coin::treasury_cap<CDT>();
+        // let strat_cap = coin::treasury_cap<STRAT>();
         // Burn CDT
         coin::burn(cdt_cap, cdt_payment);
 
@@ -147,20 +150,22 @@ module suistrat::tokens {
             timestamp,
         });
 
-        strat_coin
+        transfer::public_transfer(strat_coin, user);
     }
 
-     public fun exercise_option(
+     public entry fun exercise_option(
         treasury: &mut Treasury,
-        strat_cap: &mut TreasuryCap<STRAT>,
         cdt_cap: &mut TreasuryCap<CDT>,
+    strat_cap: &mut TreasuryCap<STRAT>,
         option_nft: OptionNFT,
         cdt_payment: Coin<CDT>,
         clock: &Clock,
         ctx: &mut TxContext
-    ): Coin<STRAT> {
+    ){
         let current_time = clock::timestamp_ms(clock) / 1000;
         let user = tx_context::sender(ctx);
+        // let cdt_cap = coin::treasury_cap<CDT>();
+        // let strat_cap = coin::treasury_cap<STRAT>();
 
         // Verify option is valid and not expired
         assert!(option_nft.holder == user, 1);
@@ -194,20 +199,22 @@ module suistrat::tokens {
         let OptionNFT { id, strike_price: _, expiry: _, activation_time: _, original_cdt_amount: _, holder: _ } = option_nft;
         object::delete(id);
 
-        strat_coin
+        transfer::public_transfer(strat_coin, user);
+
     }
 
 
-   public fun redeem_expired_option(
+   public entry fun redeem_expired_option(
         treasury: &mut Treasury,
         cdt_cap: &mut TreasuryCap<CDT>,
         option_nft: OptionNFT,
         cdt_payment: Coin<CDT>,
         clock: &Clock,
         ctx: &mut TxContext
-    ): Coin<SUI> {
+    ){
         let current_time = clock::timestamp_ms(clock) / 1000;
         let user = tx_context::sender(ctx);
+        // let cdt_cap = coin::treasury_cap<CDT>();
 
         // Verify option is expired
         assert!(option_nft.holder == user, 1);
@@ -239,7 +246,8 @@ module suistrat::tokens {
         let OptionNFT { id, strike_price: _, expiry: _, activation_time: _, original_cdt_amount: _, holder: _ } = option_nft;
         object::delete(id);
 
-        sui_coin
+                transfer::public_transfer(sui_coin, user);
+
     }
 
     // View functions
