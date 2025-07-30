@@ -231,7 +231,7 @@ header {
   right: 1em;     /* Match container padding */
   bottom: 0;
   /* Remove width: 100% */
-  background-image: url('background.jpg');
+  background-image: url('assets/img/background.jpg');
   background-size: cover;
   background-position: center;
   opacity: 0.5;
@@ -261,6 +261,17 @@ header {
 @media (max-width: 768px) {
   .container {
     padding: 0 1.5em;
+  }
+}
+
+/* Section Scroll Margins for Fixed Header */
+section[id] {
+  scroll-margin-top: 120px;
+}
+
+@media (max-width: 768px) {
+  section[id] {
+    scroll-margin-top: 100px;
   }
 }
 
@@ -315,14 +326,27 @@ header {
     grid-template-columns: 1fr;
   }
   
-  .card {
+  .how-it-works .card,
+  .user-roles .feature-card {
     height: auto;
     min-height: 200px;
   }
   
-  .feature-card {
-    height: auto;
-    min-height: 200px;
+  .why-suistrategy .features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .why-suistrategy .feature-card {
+    min-height: auto;
+  }
+  
+  .protocol-tokens .card {
+    padding-bottom: 2em;
+  }
+  
+  .features .feature-card,
+  .roadmap .card {
+    padding: 1.5em;
   }
 }
 
@@ -332,10 +356,20 @@ header {
   border-radius: var(--border-radius);
   border: none;
   outline: none;
-  height: 300px;
   display: flex;
   flex-direction: column;
   gap: var(--card-content-gap);
+}
+
+/* Fixed height only for specific sections */
+.how-it-works .card,
+.user-roles .feature-card {
+  height: 300px;
+}
+
+/* Protocol tokens with larger bottom padding */
+.protocol-tokens .card {
+  padding-bottom: 3em;
 }
 
 .card-number {
@@ -381,10 +415,47 @@ header {
   border-radius: var(--border-radius);
   border: none;
   outline: none;
-  height: 300px;
   display: flex;
   flex-direction: column;
   gap: var(--card-content-gap);
+}
+
+/* Protocol features as full-width rows */
+.features .features-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.features .feature-card {
+  width: 100%;
+  padding: 2em;
+}
+
+/* Why SuiStrategy - equal height columns */
+.why-suistrategy .features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1em;
+  align-items: stretch;
+}
+
+.why-suistrategy .feature-card {
+  height: auto;
+  min-height: 250px;
+}
+
+/* Roadmap vertical stacked */
+.roadmap .cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.roadmap .card {
+  width: 100%;
+  height: auto;
+  padding: 2em;
 }
 
 .feature-title {
@@ -469,4 +540,232 @@ header {
 .faq-answer {
   color: var(--color-cloud);
   padding: 0 var(--card-padding) var(--card-padding) var(--card-padding);
+}
+
+/* Footer Styles */
+.footer {
+  padding: 3em 0 2em 0;
+  margin-top: 4em;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-content {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2em;
+  align-items: start;
+}
+
+.footer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.footer-title {
+  color: var(--color-sea);
+  font-size: 1.2em;
+  font-weight: 500;
+  margin: 0;
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.footer-link {
+  color: var(--color-cloud);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.footer-link:hover {
+  opacity: 1;
+  color: var(--color-aqua);
+}
+
+.footer-disclaimer {
+  color: var(--color-cloud);
+  opacity: 0.7;
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Responsive Footer */
+@media (max-width: 768px) {
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 2em;
+    text-align: left;
+  }
+  
+  .footer {
+    padding: 2em 0 1.5em 0;
+    margin-top: 2em;
+  }
+}
+
+/* Competitive Table Styles */
+.competitive {
+  padding: 2em 0;
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--border-radius);
+  margin-top: 2em;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--color-ocean);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+.comparison-table th {
+  background: var(--color-ocean);
+  color: var(--color-cloud);
+  padding: 1.5em;
+  text-align: left;
+  font-weight: 500;
+  font-size: 1.1em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.comparison-table td {
+  padding: 1.2em 1.5em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-cloud);
+}
+
+.comparison-table tr:last-child td {
+  border-bottom: none;
+}
+
+.comparison-table thead tr:first-child th:first-child {
+  border-top-left-radius: var(--border-radius);
+}
+
+.comparison-table thead tr:first-child th:last-child {
+  border-top-right-radius: var(--border-radius);
+}
+
+.comparison-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--border-radius);
+}
+
+.comparison-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--border-radius);
+}
+
+.comparison-table .highlight {
+  color: var(--color-aqua);
+  font-weight: 500;
+}
+
+.comparison-table .positive {
+  color: var(--color-cloud);
+  font-weight: 500;
+}
+
+.comparison-table .negative {
+  color: var(--color-cloud);
+  font-weight: 500;
+}
+
+/* Responsive Table */
+@media (max-width: 768px) {
+  .comparison-table th,
+  .comparison-table td {
+    padding: 1em;
+    font-size: 0.9em;
+  }
+  
+  .table-container {
+    margin-top: 1em;
+  }
+}
+
+/* Feature Numbers */
+.feature-number {
+  font-size: 3em;
+  font-weight: 700;
+  color: var(--color-sea);
+  margin-bottom: 0.5em;
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .feature-number {
+    font-size: 2.5em;
+  }
+}
+
+/* Enhanced Product Cards */
+.product-card {
+  position: relative;
+}
+
+.product-token {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--color-aqua);
+  background: rgba(192, 230, 255, 0.1);
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1em;
+  width: fit-content;
+}
+
+.product-token-logo {
+  width: 1.5em;
+  height: 1.5em;
+  flex-shrink: 0;
+}
+
+.product-title {
+  font-size: 1.3em;
+  margin-bottom: 0.5em;
+}
+
+.product-highlight {
+  background: var(--color-sea);
+  color: var(--color-cloud);
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-bottom: 1em;
+  display: inline-block;
+}
+
+@media (max-width: 768px) {
+  .product-token {
+    font-size: 1.2em;
+    padding: 0.4em 0.8em;
+  }
+  
+  .product-token-logo {
+    width: 1.2em;
+    height: 1.2em;
+  }
+  
+  .product-title {
+    font-size: 1.1em;
+  }
+  
+  .product-highlight {
+    font-size: 0.85em;
+    padding: 0.4em 0.8em;
+  }
 }
