@@ -148,3 +148,33 @@ SuiStrategy brings structured treasury mechanics and tokenized leverage to the S
 * Cross-chain asset onboarding (Fusion+)
 * Advanced execution strategies (Limit Orders)
 * Dynamic conversion mechanics and DAO governance
+
+## Roadmap
+
+**Phase 1 – MVP & Core Mechanics (Current)**
+
+* **Long Bonds**: SUI → CDT (1:1000 ratio)
+* **CDT Options**: Redeem, invest in Short Bonds, or convert to SSTR
+* **Basic Short Bond logic**: CDT → SSTR minting within expiry
+* **1inch Fusion+ Integration**: Cross-chain swaps (ETH/USDC → SUI)
+* **1inch Limit Order Protocol**: Basic TWAP & limit order execution
+* **Treasury** initialized with SUI deposits (hypothetical growth)
+* **SSTR token** static value; rebase planned later
+
+**Phase 2 – Expanded Functionality**
+
+* Allow **fractional SUI deposits**
+* Launch **dashboard for NAV & SSTR metrics**
+* Enhance **Fusion+ flows** for two-way swaps (entry & exit)
+
+**Phase 3 – Full Protocol Logic**
+
+* Implement **Short Bond debt buyback & burn mechanism**
+* Add **SSTR redeem function** for treasury-backed equity
+* Activate **dynamic SSTR rebase** linked to treasury growth
+
+**Phase 4 – Advanced Automation & DAO**
+
+* Expand **1inch Limit Order strategies** (options-like execution, range orders)
+* Launch **automated strategy vaults** for SSTR holders
+* Introduce **DAO governance & on-chain strategy management**
