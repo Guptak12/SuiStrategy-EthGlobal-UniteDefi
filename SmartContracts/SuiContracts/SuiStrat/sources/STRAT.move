@@ -16,8 +16,6 @@ module suistrat::strat {
         );
         
         transfer::public_freeze_object(metadata);
-        // transfer::share_object(&treasury_cap);
-
         transfer::public_share_object(treasury_cap);
     }
 }

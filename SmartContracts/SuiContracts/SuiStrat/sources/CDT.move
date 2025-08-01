@@ -1,5 +1,6 @@
 module suistrat::cdt {
     use sui::coin;
+    
     // One-time witness for CDT currency
     public struct CDT has drop {}
 
@@ -16,9 +17,6 @@ module suistrat::cdt {
         );
         
         transfer::public_freeze_object(metadata);
-        // transfer::share_object(&treasury_cap);
-
         transfer::public_share_object(treasury_cap);
-
     }
 }
