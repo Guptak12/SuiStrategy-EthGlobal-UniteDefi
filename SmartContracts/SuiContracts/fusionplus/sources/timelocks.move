@@ -1,8 +1,11 @@
-module fusionplus::timelocks {
-    use sui::clock::Clock;
-
-    /// Simple timelock helper: returns deadline = deployed_at + offset
-    public fun compute_deadline(deployed_at: u64, offset: u64): u64 {
-        deployed_at + offset
+module cross_chain_swap::timelocks {
+    struct Timelocks has store, copy, drop {
+        src_withdrawal: u64,
+        src_public_withdrawal: u64,
+        src_cancellation: u64,
+        src_public_cancellation: u64,
+        dst_withdrawal: u64,
+        dst_public_withdrawal: u64,
+        dst_cancellation: u64,
     }
 }
