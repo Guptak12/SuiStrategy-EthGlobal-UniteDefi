@@ -2,7 +2,7 @@
 
 *Inspired by [ETH Strategy Protocol](https://www.ethstrat.xyz/). Built natively on Sui.*
 
-#### [Demo]() | [Demo video]() | [Pitchdeck](https://www.figma.com/deck/e7OTfixN604kdQaSsZT3hJ)
+#### [Demo](https://suistrategy.vercel.app/) | [Demo video]() | [Pitchdeck](https://www.figma.com/deck/e7OTfixN604kdQaSsZT3hJ)
 
 ## Overview
 
