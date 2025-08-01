@@ -34,9 +34,9 @@
     <section class="hero">
         <div class="hero-background"></div>
         <div class="container">
-            <h1 class="hero-title">SuiStrategy: Become the MicroStrategy of Sui</h1>
+            <h1 class="hero-title">SuiStrategy: Autonomous Treasury Protocol</h1>
             <p class="hero-description">
-                Leveraged yield with real treasury value, cross-chain access, and smart debt architecture—composable, scalable, and built for next-gen DeFi on Sui. A DeFi protocol that automates yield strategies and enables cross-chain swaps, using bonds, smart automation, and 1inch's Limit Order Protocol.
+                An autonomous, composable treasury protocol on Sui designed to accumulate SUI through structured debt and token-based strategies. Built natively on Sui with cross-chain exposure via 1inch Fusion+ and advanced financial primitives through the 1inch Limit Order Protocol. Inspired by ETH Strategy Protocol.
             </p>
             <div class="hero-buttons">
                 <a href="app/auth/login/" class="btn btn-primary">Enter App</a>
@@ -52,22 +52,20 @@
                 <div class="cards-grid">
                     <div class="card">
                         <div class="card-number">01/04</div>
-                        <h3 class="card-title">Bond-Based Structured Products</h3>
+                        <h3 class="card-title">Long Bonds (Convertible Debt)</h3>
                         <p class="card-description">
-                            Introduce long/short bonds that fund the treasury. 
-                            Deposit stablecoins to receive CDT (convertible debt tokens) 
-                            + Option NFTs, which can be converted to SSTR or redeemed 
-                            for underlying assets.
+                            Users deposit stablecoins (USDC) to receive CDT (Convertible Debt Token) 
+                            + NFT Options. Protocol uses deposits to market-buy SUI for treasury 
+                            accumulation. 0% interest debt with value embedded in conversion rights.
                         </p>
                     </div>
                     <div class="card">
                         <div class="card-number">02/04</div>
-                        <h3 class="card-title">Smart Automation</h3>
+                        <h3 class="card-title">Short Bonds (Debt Conversion)</h3>
                         <p class="card-description">
-                            Enable automated yield strategies via smart contract 
-                            modules and note conversion mechanisms. Utilize 1inch 
-                            Limit Order Protocol for TWAP execution and option-like 
-                            strategies with programmable on-chain automation.
+                            Users deposit CDT + NFT Option to convert debt into SSTR before 
+                            expiry, or redeem CDT after expiry for stablecoins. This reduces 
+                            protocol liabilities and recycles debt into equity.
                         </p>
                     </div>
                     <div class="card">
@@ -82,12 +80,11 @@
                     </div>
                     <div class="card">
                         <div class="card-number">04/04</div>
-                        <h3 class="card-title">Treasury Lending</h3>
+                        <h3 class="card-title">Treasury Lending & Automation</h3>
                         <p class="card-description">
-                            Treasury SUI is lent through a Sui-native lending pool 
-                            using SSTR as collateral for borrowing. Generate yield 
-                            while maintaining leveraged exposure to SUI growth 
-                            without liquidation risk.
+                            Treasury SUI is lent through a custom Sui Lending Pool where 
+                            only SSTR can be used as collateral. 1inch Limit Order Protocol 
+                            enables TWAP, options-style orders, and automated strategies.
                         </p>
                     </div>
                 </div>
@@ -101,19 +98,19 @@
                     <div class="feature-card">
                         <h3 class="feature-title">SSTR Holders</h3>
                         <p class="feature-description">
-                            Equity-like leveraged exposure to SUI growth. Treasury-backed 
-                            token that grows with SUI price through conversion mechanics 
-                            and yield generation, offering amplified gains without forced 
-                            liquidation risk.
+                            Represent equity holders with leveraged exposure to SUI. 
+                            Treasury-backed token that trades at a premium to NAV due 
+                            to embedded conversion value, offering amplified gains 
+                            without forced liquidation risk.
                         </p>
                     </div>
                     <div class="feature-card">
                         <h3 class="feature-title">Bond Purchasers</h3>
                         <p class="feature-description">
-                            Debt providers funding the treasury via convertible notes. 
-                            Deposit stablecoins to receive CDT + Option NFTs, enabling 
-                            flexible strategies from conversion to SSTR or redemption 
-                            for underlying assets.
+                            Debt holders that fund the treasury and receive the right 
+                            to convert debt into SSTR. Deposit stablecoins to receive 
+                            CDT + Option NFTs, with conversion rights before expiry 
+                            or principal redemption after expiry.
                         </p>
                     </div>
                 </div>
@@ -132,9 +129,9 @@
                         <h3 class="card-title product-title">Treasury Token</h3>
                         <div class="product-highlight">Asset-backed, value-accelerating token</div>
                         <p class="card-description">
-                            Treasury-backed equity token providing leveraged exposure 
-                            to SUI growth. Value increases with treasury performance 
-                            and SUI price appreciation through automated yield strategies.
+                            Leveraged exposure to SUI with managed downside risk and 
+                            no forced liquidation. Trades at premium to treasury NAV 
+                            due to implied premium embedded in convertible notes.
                         </p>
                     </div>
                     <div class="card product-card">
@@ -145,9 +142,9 @@
                         <h3 class="card-title product-title">Convertible Debt</h3>
                         <div class="product-highlight">0% interest debt, convertible to SSTR</div>
                         <p class="card-description">
-                            Created through bonding mechanism. Protocol's market-based 
-                            bonding ensures new CDT is backed by treasury assets, 
-                            convertible to SSTR or redeemable for stablecoins.
+                            Fungible Sui-native token representing convertible debt. 
+                            Created when users deposit stablecoins. Can be converted 
+                            to SSTR (with NFT Option) or redeemed for stablecoins after expiry.
                         </p>
                     </div>
                     <div class="card product-card">
@@ -158,9 +155,9 @@
                         <h3 class="card-title product-title">Option NFTs</h3>
                         <div class="product-highlight">Holds convertible options</div>
                         <p class="card-description">
-                            Potentially more abundant than CDT. Holders must hold or 
-                            acquire CDT to exercise options, sustaining consistent 
-                            buy demand on the debt token for balanced tokenomics.
+                            Non-fungible rights to convert CDT into SSTR before expiry. 
+                            Created alongside CDT when users deposit stablecoins. 
+                            Must be combined with CDT for conversion to SSTR.
                         </p>
                     </div>
                     <div class="card product-card">
@@ -185,12 +182,12 @@
                 <h2 class="section-title">Protocol Features</h2>
                 <div class="features-grid">
                     <div class="feature-card">
-                        <h3 class="feature-title">Automated Yield Strategies</h3>
+                        <h3 class="feature-title">Treasury Accumulation</h3>
                         <p class="feature-description">
-                            Addresses fragmented yields with modular automation. 
-                            Smart contracts handle strategy execution while bonds 
-                            and note conversion create sustainable revenue streams 
-                            for treasury growth and SSTR value accrual.
+                            Accumulates large on-chain treasury primarily denominated 
+                            in SUI through structured debt instruments. 0% interest 
+                            bonds with embedded conversion value create sustainable 
+                            treasury growth and SSTR value accrual.
                         </p>
                     </div>
                     <div class="feature-card">
@@ -236,7 +233,7 @@
                             <tr>
                                 <td>Token</td>
                                 <td>STRAT (ERC20)</td>
-                                <td class="highlight">SSTR (Sui-native, fungible)</td>
+                                <td class="highlight">SSTR (Sui-native coin)</td>
                             </tr>
                             <tr>
                                 <td>Swap Support</td>
@@ -250,8 +247,8 @@
                             </tr>
                             <tr>
                                 <td>Lending Pool</td>
-                                <td>Morpho ETH-based</td>
-                                <td class="positive">✅ Native SSTR-SUI lending pool</td>
+                                <td>STRAT-backed lending via Morpho ETH pool</td>
+                                <td class="positive">✅ SSTR-backed SUI lending pool built natively on Sui</td>
                             </tr>
                             <tr>
                                 <td>UX/UI</td>
@@ -265,8 +262,8 @@
                             </tr>
                             <tr>
                                 <td>Modularity</td>
-                                <td>Limited</td>
-                                <td class="positive">✅ Highly modular with 1inch API and vaults</td>
+                                <td>Rigid structure (dependent on Morpho)</td>
+                                <td class="positive">✅ Modular strategy setup, 1inch API support, strategy automation vaults</td>
                             </tr>
                         </tbody>
                     </table>
@@ -291,9 +288,9 @@
                         <div class="feature-number">$10B+</div>
                         <h3 class="feature-title">Institutional Ready</h3>
                         <p class="feature-description">
-                            Built for the maturing Sui ecosystem with support from 
-                            Fireblocks, Grayscale, and potential ETFs. Addresses the 
-                            gap in structured DeFi for institutional participants.
+                            Growing institutional interest in Sui—highlighted by activity 
+                            from Fireblocks, Grayscale, and ongoing development of 
+                            stablecoins and potential ETF products. Maturing Layer 1 ecosystem.
                         </p>
                     </div>
                     <div class="feature-card">
@@ -315,38 +312,38 @@
                 <div class="cards-grid">
                     <div class="card">
                         <div class="card-number">Phase 1</div>
-                        <h3 class="card-title">MVP Launch</h3>
+                        <h3 class="card-title">MVP & Core Mechanics</h3>
                         <p class="card-description">
-                            Deploy core protocol with 1inch Fusion+ Sui integration 
-                            and Limit Order Protocol. Launch bond mechanisms and 
-                            basic treasury operations for initial users.
+                            Long Bonds (SUI → CDT), CDT Options, Short Bond logic, 
+                            1inch Fusion+ integration for cross-chain swaps, and 
+                            1inch Limit Order Protocol for TWAP execution.
                         </p>
                     </div>
                     <div class="card">
                         <div class="card-number">Phase 2</div>
-                        <h3 class="card-title">Community & Vaults</h3>
+                        <h3 class="card-title">Expanded Functionality</h3>
                         <p class="card-description">
-                            Build community engagement and launch comprehensive 
-                            vault service. Expand automated strategies and 
-                            cross-chain liquidity options for broader adoption.
+                            Allow fractional SUI deposits, launch dashboard for NAV 
+                            & SSTR metrics, enhance Fusion+ flows for two-way swaps 
+                            (entry & exit strategies).
                         </p>
                     </div>
                     <div class="card">
                         <div class="card-number">Phase 3</div>
-                        <h3 class="card-title">Beta & Aptos</h3>
+                        <h3 class="card-title">Full Protocol Logic</h3>
                         <p class="card-description">
-                            Comprehensive beta testing and integration with Aptos 
-                            network. Expand cross-chain capabilities and refine 
-                            automated yield strategies based on user feedback.
+                            Implement Short Bond debt buyback & burn mechanism, 
+                            add SSTR redeem function for treasury-backed equity, 
+                            activate dynamic SSTR rebase linked to treasury growth.
                         </p>
                     </div>
                     <div class="card">
-                        <div class="card-number">H1 2025</div>
-                        <h3 class="card-title">DAO Governance</h3>
+                        <div class="card-number">Phase 4</div>
+                        <h3 class="card-title">Advanced Automation & DAO</h3>
                         <p class="card-description">
-                            Launch full DAO governance infrastructure. Enable 
-                            community-driven strategy decisions and protocol 
-                            evolution through decentralized governance mechanisms.
+                            Expand 1inch Limit Order strategies (options-like execution, 
+                            range orders), launch automated strategy vaults for SSTR holders, 
+                            introduce DAO governance & on-chain strategy management.
                         </p>
                     </div>
                 </div>
@@ -363,7 +360,7 @@
                             <img src="assets/arrow-right.svg" class="arrow-icon faq-arrow">
                         </summary>
                         <div class="faq-answer">
-                            A DeFi protocol on Sui automating yield strategies with bonds, smart contracts, and 1inch for cross-chain swaps and composable tools. It combines structured products, automation, and cross-chain liquidity for efficient DeFi.
+                            An autonomous, composable treasury protocol on Sui designed to accumulate SUI through structured debt and token-based strategies. Built natively on Sui with cross-chain exposure via 1inch Fusion+ and advanced primitives through 1inch Limit Order Protocol. Inspired by ETH Strategy Protocol.
                         </div>
                     </details>
                     <details class="faq-item">
@@ -372,7 +369,7 @@
                             <img src="assets/arrow-right.svg" class="arrow-icon faq-arrow">
                         </summary>
                         <div class="faq-answer">
-                            Long/short bonds fund the treasury. Deposit stablecoins to receive CDT (convertible debt tokens) + Option NFTs, which can be converted to SSTR for leveraged exposure or redeemed for underlying assets.
+                            Long Bonds: Deposit stablecoins to receive CDT + Option NFTs. Protocol uses deposits to buy SUI for treasury. Short Bonds: Convert CDT + NFT Option to SSTR before expiry, or redeem CDT for stablecoins after expiry. 0% interest debt with value embedded in conversion rights.
                         </div>
                     </details>
                     <details class="faq-item">
@@ -381,7 +378,7 @@
                             <img src="assets/arrow-right.svg" class="arrow-icon faq-arrow">
                         </summary>
                         <div class="faq-answer">
-                            Treasury-backed token that grows with SUI price through automated yield strategies. Value accrues from conversion mechanics, lending yields, and treasury growth without liquidation risk.
+                            Leveraged exposure to SUI with managed downside risk and no forced liquidation. Trades at premium to treasury NAV due to implied premium embedded in convertible notes. Value increases as treasury accumulates more SUI and through lending yields.
                         </div>
                     </details>
                     <details class="faq-item">
@@ -399,7 +396,7 @@
                             <img src="assets/arrow-right.svg" class="arrow-icon faq-arrow">
                         </summary>
                         <div class="faq-answer">
-                            Yes, use SSTR as collateral in the native Sui lending pool for borrowing. Maintain leveraged exposure while accessing liquidity without selling your position.
+                            Yes, use SSTR as collateral in the custom Sui Lending Pool where only SSTR tokens can be used as collateral. SSTR holders can borrow SUI against SSTR with liquidation thresholds while maintaining leveraged exposure.
                         </div>
                     </details>
                     <details class="faq-item">
