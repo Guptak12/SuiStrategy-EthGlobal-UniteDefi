@@ -1,19 +1,15 @@
 // sui_escrow_factory.move
-module cross_chain_swap::escrow_factory {
+module fusionplus::escrow_factory {
     use sui::coin::{Self, Coin};
+    use sui::sui::{Self, SUI};
     use sui::balance::{Self, Balance};
-    use sui::object::{Self, UID, ID};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer;
     use sui::event;
     use sui::clock::{Self, Clock};
     use sui::hash;
-    use std::vector;
 
     // ========== Constants ==========
     
     const ETH_CHAIN_ID: u256 = 1;
-    const ARBITRUM_CHAIN_ID: u256 = 42161;
     
     // Error codes
     const E_INVALID_SECRET: u64 = 1;
@@ -27,14 +23,14 @@ module cross_chain_swap::escrow_factory {
     // ========== Structs ==========
 
     /// Factory for creating cross-chain escrows
-    struct EscrowFactory has key {
+    public struct EscrowFactory has key {
         id: UID,
         admin: address,
         rescue_delay: u64,
     }
 
     /// Timelock configuration for cross-chain coordination
-    struct Timelocks has store, copy, drop {
+    public struct Timelocks has store, copy, drop {
         withdrawal_start: u64,
         public_withdrawal_start: u64,
         cancellation_start: u64,
@@ -42,7 +38,7 @@ module cross_chain_swap::escrow_factory {
     }
 
     /// Source escrow for SUI → ETH swaps
-    struct SuiEscrowSrc<phantom T> has key {
+    public struct SuiEscrowSrc<phantom T> has key {
         id: UID,
         // Immutable swap parameters
         order_hash: vector<u8>,
@@ -62,7 +58,7 @@ module cross_chain_swap::escrow_factory {
     }
 
     /// Destination escrow for ETH → SUI swaps  
-    struct SuiEscrowDst<phantom T> has key {
+    public struct SuiEscrowDst<phantom T> has key {
         id: UID,
         // Immutable swap parameters
         order_hash: vector<u8>,
@@ -86,7 +82,7 @@ module cross_chain_swap::escrow_factory {
 
     // ========== Events ==========
 
-    struct SuiEscrowCreated has copy, drop {
+    public struct SuiEscrowCreated has copy, drop {
         escrow_id: ID,
         order_hash: vector<u8>,
         hashlock: vector<u8>,
@@ -96,18 +92,18 @@ module cross_chain_swap::escrow_factory {
         eth_chain_id: u256,
     }
 
-    struct EscrowWithdrawal has copy, drop {
+    public struct EscrowWithdrawal has copy, drop {
         escrow_id: ID,
         secret: vector<u8>,
         recipient: address,
     }
 
-    struct EscrowCancelled has copy, drop {
+    public struct EscrowCancelled has copy, drop {
         escrow_id: ID,
         refund_recipient: address,
     }
 
-    struct SecretRevealed has copy, drop {
+    public struct SecretRevealed has copy, drop {
         order_hash: vector<u8>,
         secret: vector<u8>,
         hashlock: vector<u8>,
@@ -228,6 +224,15 @@ module cross_chain_swap::escrow_factory {
         };
 
         let escrow_id = object::id(&escrow);
+        let mut escrow = escrow;
+
+
+let split_coin = coin::from_balance(balance::split(&mut escrow.amount, 0), ctx);
+
+let value_for_event = coin::value(&split_coin);
+
+
+coin::destroy_zero(split_coin);
 
         event::emit(SuiEscrowCreated {
             escrow_id,
@@ -235,8 +240,8 @@ module cross_chain_swap::escrow_factory {
             hashlock,
             maker,
             taker,
-            amount: coin::value(&coin::from_balance(balance::split(&mut escrow.amount, 0), ctx)),
-            eth_chain_id: ETH_CHAIN_ID, // Default to ETH mainnet
+            amount:value_for_event,
+            eth_chain_id: ETH_CHAIN_ID, 
         });
 
         transfer::share_object(escrow);
