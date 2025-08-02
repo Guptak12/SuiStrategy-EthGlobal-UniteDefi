@@ -1,0 +1,3 @@
+[submodule "SmartContracts/SuiContracts/fusionplus/SmartContracts/SuiContracts/fusionplus"]
+	path = SmartContracts/SuiContracts/fusionplus/SmartContracts/SuiContracts/fusionplus
+	url = https://github.com/Guptak12/cross-chain-swap-1inch.git
