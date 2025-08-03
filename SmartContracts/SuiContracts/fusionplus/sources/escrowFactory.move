@@ -1,652 +1,590 @@
-// sui_escrow_factory.move
-module fusionplus::escrow_factory {
-    use sui::coin::{Self, Coin};
-    use sui::sui::{Self, SUI};
+// SUI Move contract for ETH-SUI cross-chain atomic swaps
+// This is the counterpart to the Ethereum escrow contracts
+
+module cross_chain_escrow::escrow {
+    use std::vector;
+    use std::option::{Self, Option};
+    
+    use sui::object::{Self, UID, ID};
+    use sui::transfer;
+    use sui::tx_context::{Self, TxContext};
     use sui::balance::{Self, Balance};
-    use sui::event;
+    use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
+    use sui::event;
     use sui::hash;
+    use sui::address;
+    use sui::table::{Self, Table};
+    use sui::vec_map::{Self, VecMap};
 
-    // ========== Constants ==========
-    
-    const ETH_CHAIN_ID: u256 = 1;
-    
-    // Error codes
-    const E_INVALID_SECRET: u64 = 1;
-    const E_INVALID_TIME: u64 = 2;
-    const E_UNAUTHORIZED: u64 = 3;
-    const E_ALREADY_WITHDRAWN: u64 = 4;
-    const E_ALREADY_CANCELLED: u64 = 5;
-    const E_INSUFFICIENT_BALANCE: u64 = 6;
-    const E_INVALID_HASHLOCK: u64 = 7;
+    // ============= Error Codes =============
+    const E_INVALID_HASHLOCK: u64 = 1;
+    const E_INVALID_SECRET: u64 = 2;
+    const E_ESCROW_EXPIRED: u64 = 3;
+    const E_ESCROW_NOT_EXPIRED: u64 = 4;
+    const E_UNAUTHORIZED: u64 = 5;
+    const E_INSUFFICIENT_AMOUNT: u64 = 6;
+    const E_ESCROW_ALREADY_EXISTS: u64 = 7;
+    const E_ESCROW_NOT_FOUND: u64 = 8;
+    const E_INVALID_TIMELOCK: u64 = 9;
+    const E_WITHDRAWAL_TOO_EARLY: u64 = 10;
+    const E_CANCELLATION_TOO_EARLY: u64 = 11;
+    const E_ESCROW_ALREADY_COMPLETED: u64 = 12;
+    const E_INVALID_WITNESS: u64 = 13;
 
-    // ========== Structs ==========
+    // ============= Structs =============
 
-    /// Factory for creating cross-chain escrows
-    public struct EscrowFactory has key {
+    /// Cross-chain escrow for atomic swaps
+    public struct CrossChainEscrow<phantom T> has key, store {
         id: UID,
-        admin: address,
-        rescue_delay: u64,
-    }
-
-    /// Timelock configuration for cross-chain coordination
-    public struct Timelocks has store, copy, drop {
-        withdrawal_start: u64,
-        public_withdrawal_start: u64,
-        cancellation_start: u64,
-        deployed_at: u64,
-    }
-
-    /// Source escrow for SUI → ETH swaps
-    public struct SuiEscrowSrc<phantom T> has key {
-        id: UID,
-        // Immutable swap parameters
         order_hash: vector<u8>,
         hashlock: vector<u8>,
-        maker: address,
-        taker: address,
-        // Locked funds
-        amount: Balance<T>,
-        safety_deposit: Balance<SUI>,
-        // Timing controls
-        timelocks: Timelocks,
-        // State tracking
-        is_withdrawn: bool,
-        is_cancelled: bool,
-        // Cross-chain reference
-        eth_chain_id: u256,
+        sui_maker: address,
+        eth_counterparty: address,
+        locked_amount: Balance<T>,
+        safety_deposit: u64,
+        created_at: u64,
+        withdrawal_time: u64,
+        public_withdrawal_time: u64,
+        cancellation_time: u64,
+        status: u8, // 0: Active, 1: Completed, 2: Cancelled
+        witnesses: vector<address>,
     }
 
-    /// Destination escrow for ETH → SUI swaps  
-    public struct SuiEscrowDst<phantom T> has key {
+    /// Capability for escrow administration
+    public struct EscrowAdminCap has key, store {
         id: UID,
-        // Immutable swap parameters
-        order_hash: vector<u8>,
-        hashlock: vector<u8>,
-        maker: address,
-        taker: address,
-        // Locked funds
-        amount: Balance<T>,
-        safety_deposit: Balance<SUI>,
-        // Timing controls
-        timelocks: Timelocks,
-        // State tracking
-        is_withdrawn: bool,
-        is_cancelled: bool,
-        // Fee structure
-        protocol_fee_amount: u64,
-        integrator_fee_amount: u64,
-        protocol_fee_recipient: address,
-        integrator_fee_recipient: address,
     }
 
-    // ========== Events ==========
+    /// Registry for tracking all escrows
+    public struct EscrowRegistry has key {
+        id: UID,
+        escrows: Table<vector<u8>, ID>, // order_hash -> escrow_id
+        authorized_validators: VecMap<address, bool>,
+        min_validators: u64,
+        max_escrow_duration: u64,
+    }
 
-    public struct SuiEscrowCreated has copy, drop {
+    /// Witness for creating escrows
+    public struct CrossChainWitness has drop {}
+
+    /// Configuration for timelock settings
+    public struct TimelockConfig has copy, drop, store {
+        finality_delay: u64,
+        public_window: u64,
+        cancellation_delay: u64,
+    }
+
+    // ============= Events =============
+
+    public struct EscrowCreated has copy, drop {
         escrow_id: ID,
         order_hash: vector<u8>,
-        hashlock: vector<u8>,
-        maker: address,
-        taker: address,
+        sui_maker: address,
+        eth_counterparty: address,
         amount: u64,
-        eth_chain_id: u256,
+        withdrawal_time: u64,
+        cancellation_time: u64,
     }
 
-    public struct EscrowWithdrawal has copy, drop {
+    public struct EscrowWithdrawn has copy, drop {
         escrow_id: ID,
+        order_hash: vector<u8>,
         secret: vector<u8>,
         recipient: address,
+        amount: u64,
     }
 
     public struct EscrowCancelled has copy, drop {
         escrow_id: ID,
-        refund_recipient: address,
-    }
-
-    public struct SecretRevealed has copy, drop {
         order_hash: vector<u8>,
-        secret: vector<u8>,
-        hashlock: vector<u8>,
+        cancelled_by: address,
+        refunded_amount: u64,
     }
 
-    // ========== Factory Functions ==========
+    public struct ValidatorAdded has copy, drop {
+        validator: address,
+        added_by: address,
+    }
 
-    /// Initialize the escrow factory
+    // ============= Initialization =============
+
+    /// Initialize the escrow module
     fun init(ctx: &mut TxContext) {
-        let factory = EscrowFactory {
+        // Create admin capability
+        let admin_cap = EscrowAdminCap {
             id: object::new(ctx),
-            admin: tx_context::sender(ctx),
-            rescue_delay: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
         };
-        transfer::share_object(factory);
+
+        // Create escrow registry
+        let registry = EscrowRegistry {
+            id: object::new(ctx),
+            escrows: table::new(ctx),
+            authorized_validators: vec_map::empty(),
+            min_validators: 2,
+            max_escrow_duration: 604800000, // 7 days in milliseconds
+        };
+
+        // Transfer admin capability to deployer
+        transfer::transfer(admin_cap, tx_context::sender(ctx));
+        transfer::share_object(registry);
     }
 
-    /// Create source escrow for SUI → ETH swap
-    public entry fun create_src_escrow<T>(
-        factory: &EscrowFactory,
+    // ============= Public Functions =============
+
+    /// Create a new cross-chain escrow
+    public fun create_escrow<T>(
+        registry: &mut EscrowRegistry,
+        payment: Coin<T>,
         order_hash: vector<u8>,
         hashlock: vector<u8>,
-        maker: address,
-        taker: address,
-        sui_coin: Coin<T>,
-        safety_deposit: Coin<SUI>,
-        withdrawal_delay: u64,
-        public_withdrawal_delay: u64,
-        cancellation_delay: u64,
-        eth_chain_id: u256,
+        eth_counterparty: address,
+        timelock_config: TimelockConfig,
+        safety_deposit: u64,
         clock: &Clock,
         ctx: &mut TxContext
-    ) {
+    ): ID {
+        // Validate inputs
+        assert!(vector::length(&order_hash) == 32, E_INVALID_HASHLOCK);
+        assert!(vector::length(&hashlock) == 32, E_INVALID_HASHLOCK);
+        assert!(!table::contains(&registry.escrows, order_hash), E_ESCROW_ALREADY_EXISTS);
+        
+        let amount = coin::value(&payment);
+        assert!(amount > 0, E_INSUFFICIENT_AMOUNT);
+        
         let current_time = clock::timestamp_ms(clock);
         
-        let timelocks = Timelocks {
-            withdrawal_start: current_time + withdrawal_delay,
-            public_withdrawal_start: current_time + public_withdrawal_delay,
-            cancellation_start: current_time + cancellation_delay,
-            deployed_at: current_time,
-        };
+        // Validate timelocks
+        assert!(timelock_config.finality_delay > 0, E_INVALID_TIMELOCK);
+        assert!(timelock_config.public_window > timelock_config.finality_delay, E_INVALID_TIMELOCK);
+        assert!(timelock_config.cancellation_delay > timelock_config.public_window, E_INVALID_TIMELOCK);
+        assert!(timelock_config.cancellation_delay <= registry.max_escrow_duration, E_INVALID_TIMELOCK);
 
-        let amount = coin::value(&sui_coin);
-        let deposit_amount = coin::value(&safety_deposit);
+        // Calculate timelock timestamps
+        let withdrawal_time = current_time + timelock_config.finality_delay;
+        let public_withdrawal_time = current_time + timelock_config.public_window;
+        let cancellation_time = current_time + timelock_config.cancellation_delay;
 
-        let escrow = SuiEscrowSrc<T> {
+        // Create escrow
+        let escrow = CrossChainEscrow<T> {
             id: object::new(ctx),
             order_hash,
             hashlock,
-            maker,
-            taker,
-            amount: coin::into_balance(sui_coin),
-            safety_deposit: coin::into_balance(safety_deposit),
-            timelocks,
-            is_withdrawn: false,
-            is_cancelled: false,
-            eth_chain_id,
+            sui_maker: tx_context::sender(ctx),
+            eth_counterparty,
+            locked_amount: coin::into_balance(payment),
+            safety_deposit,
+            created_at: current_time,
+            withdrawal_time,
+            public_withdrawal_time,
+            cancellation_time,
+            status: 0, // Active
+            witnesses: vector::empty(),
         };
 
         let escrow_id = object::id(&escrow);
+        
+        // Register escrow
+        table::add(&mut registry.escrows, order_hash, escrow_id);
 
-        event::emit(SuiEscrowCreated {
+        // Emit event
+        event::emit(EscrowCreated {
             escrow_id,
             order_hash,
-            hashlock,
-            maker,
-            taker,
+            sui_maker: tx_context::sender(ctx),
+            eth_counterparty,
             amount,
-            eth_chain_id,
+            withdrawal_time,
+            cancellation_time,
         });
 
+        // Share escrow object
         transfer::share_object(escrow);
+        escrow_id
     }
 
-    /// Create destination escrow for ETH → SUI swap
-    public entry fun create_dst_escrow<T>(
-        factory: &EscrowFactory,
-        order_hash: vector<u8>,
-        hashlock: vector<u8>,
-        maker: address,
-        taker: address,
-        sui_coin: Coin<T>,
-        safety_deposit: Coin<SUI>,
-        withdrawal_delay: u64,
-        public_withdrawal_delay: u64,
-        cancellation_delay: u64,
-        protocol_fee_amount: u64,
-        integrator_fee_amount: u64,
-        protocol_fee_recipient: address,
-        integrator_fee_recipient: address,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        let current_time = clock::timestamp_ms(clock);
-        
-        let timelocks = Timelocks {
-            withdrawal_start: current_time + withdrawal_delay,
-            public_withdrawal_start: current_time + public_withdrawal_delay,
-            cancellation_start: current_time + cancellation_delay,
-            deployed_at: current_time,
-        };
-
-        let escrow = SuiEscrowDst<T> {
-            id: object::new(ctx),
-            order_hash,
-            hashlock,
-            maker,
-            taker,
-            amount: coin::into_balance(sui_coin),
-            safety_deposit: coin::into_balance(safety_deposit),
-            timelocks,
-            is_withdrawn: false,
-            is_cancelled: false,
-            protocol_fee_amount,
-            integrator_fee_amount,
-            protocol_fee_recipient,
-            integrator_fee_recipient,
-        };
-
-        let escrow_id = object::id(&escrow);
-        let mut escrow = escrow;
-
-
-let split_coin = coin::from_balance(balance::split(&mut escrow.amount, 0), ctx);
-
-let value_for_event = coin::value(&split_coin);
-
-
-coin::destroy_zero(split_coin);
-
-        event::emit(SuiEscrowCreated {
-            escrow_id,
-            order_hash,
-            hashlock,
-            maker,
-            taker,
-            amount:value_for_event,
-            eth_chain_id: ETH_CHAIN_ID, 
-        });
-
-        transfer::share_object(escrow);
-    }
-
-    // ========== Source Escrow Functions ==========
-
-    /// Withdraw from source escrow (SUI → ETH swap)
-    public entry fun withdraw_src<T>(
-        escrow: &mut SuiEscrowSrc<T>,
+    /// Withdraw funds from escrow with secret (for ETH counterparty)
+    public fun withdraw<T>(
+        escrow: &mut CrossChainEscrow<T>,
         secret: vector<u8>,
         clock: &Clock,
         ctx: &mut TxContext
-    ) {
-        let sender = tx_context::sender(ctx);
+    ): Coin<T> {
+        assert!(escrow.status == 0, E_ESCROW_ALREADY_COMPLETED);
+        
         let current_time = clock::timestamp_ms(clock);
-        
-        // Validate caller is taker
-        assert!(sender == escrow.taker, E_UNAUTHORIZED);
-        
-        // Validate timing
-        assert!(current_time >= escrow.timelocks.withdrawal_start, E_INVALID_TIME);
-        assert!(current_time < escrow.timelocks.cancellation_start, E_INVALID_TIME);
-        
-        // Validate not already processed
-        assert!(!escrow.is_withdrawn, E_ALREADY_WITHDRAWN);
-        assert!(!escrow.is_cancelled, E_ALREADY_CANCELLED);
-        
-        // Validate secret
-        let computed_hash = hash::keccak256(&secret);
+        assert!(current_time >= escrow.withdrawal_time, E_WITHDRAWAL_TOO_EARLY);
+        assert!(current_time < escrow.cancellation_time, E_ESCROW_EXPIRED);
+
+        // Verify secret matches hashlock
+        let computed_hash = hash::sha2_256(secret);
         assert!(computed_hash == escrow.hashlock, E_INVALID_SECRET);
-        
-        // Mark as withdrawn
-        escrow.is_withdrawn = true;
-        
-        // Transfer funds to taker
-        let amount = balance::withdraw_all(&mut escrow.amount);
-        let safety_deposit = balance::withdraw_all(&mut escrow.safety_deposit);
-        
-        transfer::public_transfer(coin::from_balance(amount, ctx), sender);
-        transfer::public_transfer(coin::from_balance(safety_deposit, ctx), sender);
-        
-        // Emit events
-        event::emit(EscrowWithdrawal {
+
+        // Mark as completed
+        escrow.status = 1;
+
+        // Calculate withdrawal amount (keeping safety deposit for gas)
+        let total_amount = balance::value(&escrow.locked_amount);
+        let withdrawal_amount = if (total_amount > escrow.safety_deposit) {
+            total_amount - escrow.safety_deposit
+        } else {
+            total_amount
+        };
+
+        // Create coin for withdrawal
+        let withdrawn_balance = balance::split(&mut escrow.locked_amount, withdrawal_amount);
+        let withdrawal_coin = coin::from_balance(withdrawn_balance, ctx);
+
+        // Emit event
+        event::emit(EscrowWithdrawn {
             escrow_id: object::id(escrow),
-            secret,
-            recipient: sender,
-        });
-        
-        event::emit(SecretRevealed {
             order_hash: escrow.order_hash,
             secret,
-            hashlock: escrow.hashlock,
+            recipient: tx_context::sender(ctx),
+            amount: withdrawal_amount,
         });
+
+        withdrawal_coin
     }
 
-    /// Public withdraw from source escrow (anyone can call with secret)
-    public entry fun public_withdraw_src<T>(
-        escrow: &mut SuiEscrowSrc<T>,
+    /// Public withdrawal (anyone can trigger after public window)
+    public fun public_withdraw<T>(
+        escrow: &mut CrossChainEscrow<T>,
         secret: vector<u8>,
         clock: &Clock,
         ctx: &mut TxContext
-    ) {
+    ): Coin<T> {
+        assert!(escrow.status == 0, E_ESCROW_ALREADY_COMPLETED);
+        
         let current_time = clock::timestamp_ms(clock);
-        
-        // Validate timing - must be in public withdrawal period
-        assert!(current_time >= escrow.timelocks.public_withdrawal_start, E_INVALID_TIME);
-        assert!(current_time < escrow.timelocks.cancellation_start, E_INVALID_TIME);
-        
-        // Validate not already processed
-        assert!(!escrow.is_withdrawn, E_ALREADY_WITHDRAWN);
-        assert!(!escrow.is_cancelled, E_ALREADY_CANCELLED);
-        
-        // Validate secret
-        let computed_hash = hash::keccak256(&secret);
+        assert!(current_time >= escrow.public_withdrawal_time, E_WITHDRAWAL_TOO_EARLY);
+        assert!(current_time < escrow.cancellation_time, E_ESCROW_EXPIRED);
+
+        // Verify secret
+        let computed_hash = hash::sha2_256(secret);
         assert!(computed_hash == escrow.hashlock, E_INVALID_SECRET);
-        
-        // Mark as withdrawn
-        escrow.is_withdrawn = true;
-        
-        // Transfer funds to taker, safety deposit to caller
-        let amount = balance::withdraw_all(&mut escrow.amount);
-        let safety_deposit = balance::withdraw_all(&mut escrow.safety_deposit);
-        
-        transfer::public_transfer(coin::from_balance(amount, ctx), escrow.taker);
-        transfer::public_transfer(coin::from_balance(safety_deposit, ctx), tx_context::sender(ctx));
-        
-        // Emit events
-        event::emit(EscrowWithdrawal {
+
+        // Mark as completed
+        escrow.status = 1;
+
+        // Withdraw to ETH counterparty (since this is public withdrawal)
+        let total_amount = balance::value(&escrow.locked_amount);
+        let withdrawal_amount = if (total_amount > escrow.safety_deposit) {
+            total_amount - escrow.safety_deposit
+        } else {
+            total_amount
+        };
+
+        let withdrawn_balance = balance::split(&mut escrow.locked_amount, withdrawal_amount);
+        let withdrawal_coin = coin::from_balance(withdrawn_balance, ctx);
+
+        event::emit(EscrowWithdrawn {
             escrow_id: object::id(escrow),
-            secret,
-            recipient: escrow.taker,
-        });
-        
-        event::emit(SecretRevealed {
             order_hash: escrow.order_hash,
             secret,
-            hashlock: escrow.hashlock,
+            recipient: escrow.eth_counterparty,
+            amount: withdrawal_amount,
         });
+
+        // Note: In practice, this would need to send to ETH counterparty
+        // For now, sending to transaction sender who should forward it
+        withdrawal_coin
     }
 
-    /// Cancel source escrow (taker only)
-    public entry fun cancel_src<T>(
-        escrow: &mut SuiEscrowSrc<T>,
+    /// Cancel escrow and refund to maker
+    public fun cancel<T>(
+        escrow: &mut CrossChainEscrow<T>,
         clock: &Clock,
         ctx: &mut TxContext
-    ) {
-        let sender = tx_context::sender(ctx);
+    ): Coin<T> {
+        // Only maker can cancel during private cancellation period
+        assert!(tx_context::sender(ctx) == escrow.sui_maker, E_UNAUTHORIZED);
+        assert!(escrow.status == 0, E_ESCROW_ALREADY_COMPLETED);
+        
         let current_time = clock::timestamp_ms(clock);
-        
-        // Validate caller is taker
-        assert!(sender == escrow.taker, E_UNAUTHORIZED);
-        
-        // Validate timing - must be after cancellation period
-        assert!(current_time >= escrow.timelocks.cancellation_start, E_INVALID_TIME);
-        
-        // Validate not already processed
-        assert!(!escrow.is_withdrawn, E_ALREADY_WITHDRAWN);
-        assert!(!escrow.is_cancelled, E_ALREADY_CANCELLED);
-        
+        assert!(current_time >= escrow.cancellation_time, E_CANCELLATION_TOO_EARLY);
+
         // Mark as cancelled
-        escrow.is_cancelled = true;
+        escrow.status = 2;
+
+        // Refund full amount to maker
+        let refund_amount = balance::value(&escrow.locked_amount);
+        let refund_balance = balance::withdraw_all(&mut escrow.locked_amount);
+        let refund_coin = coin::from_balance(refund_balance, ctx);
+
+        event::emit(EscrowCancelled {
+            escrow_id: object::id(escrow),
+            order_hash: escrow.order_hash,
+            cancelled_by: tx_context::sender(ctx),
+            refunded_amount: refund_amount,
+        });
+
+        refund_coin
+    }
+
+    /// Public cancellation (anyone can trigger)
+    public fun public_cancel<T>(
+        escrow: &mut CrossChainEscrow<T>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ): Coin<T> {
+        assert!(escrow.status == 0, E_ESCROW_ALREADY_COMPLETED);
         
+        let current_time = clock::timestamp_ms(clock);
+        // Add buffer time for public cancellation
+        assert!(current_time >= escrow.cancellation_time + 3600000, E_CANCELLATION_TOO_EARLY); // +1 hour
+
+        // Mark as cancelled
+        escrow.status = 2;
+
         // Refund to maker
-        let amount = balance::withdraw_all(&mut escrow.amount);
-        let safety_deposit = balance::withdraw_all(&mut escrow.safety_deposit);
-        
-        transfer::public_transfer(coin::from_balance(amount, ctx), escrow.maker);
-        transfer::public_transfer(coin::from_balance(safety_deposit, ctx), sender);
-        
+        let refund_amount = balance::value(&escrow.locked_amount);
+        let refund_balance = balance::withdraw_all(&mut escrow.locked_amount);
+        let refund_coin = coin::from_balance(refund_balance, ctx);
+
         event::emit(EscrowCancelled {
             escrow_id: object::id(escrow),
-            refund_recipient: escrow.maker,
-        });
-    }
-
-    // ========== Destination Escrow Functions ==========
-
-    /// Withdraw from destination escrow (ETH → SUI swap)
-    public entry fun withdraw_dst<T>(
-        escrow: &mut SuiEscrowDst<T>,
-        secret: vector<u8>,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        let sender = tx_context::sender(ctx);
-        let current_time = clock::timestamp_ms(clock);
-        
-        // Validate caller is taker
-        assert!(sender == escrow.taker, E_UNAUTHORIZED);
-        
-        // Validate timing
-        assert!(current_time >= escrow.timelocks.withdrawal_start, E_INVALID_TIME);
-        assert!(current_time < escrow.timelocks.cancellation_start, E_INVALID_TIME);
-        
-        // Validate not already processed
-        assert!(!escrow.is_withdrawn, E_ALREADY_WITHDRAWN);
-        assert!(!escrow.is_cancelled, E_ALREADY_CANCELLED);
-        
-        // Validate secret
-        let computed_hash = hash::keccak256(&secret);
-        assert!(computed_hash == escrow.hashlock, E_INVALID_SECRET);
-        
-        // Mark as withdrawn
-        escrow.is_withdrawn = true;
-        
-        // Handle fee distribution
-        let total_amount = balance::value(&escrow.amount);
-        let protocol_fee = escrow.protocol_fee_amount;
-        let integrator_fee = escrow.integrator_fee_amount;
-        let maker_amount = total_amount - protocol_fee - integrator_fee;
-        
-        // Transfer fees
-        if (protocol_fee > 0) {
-            let fee_balance = balance::split(&mut escrow.amount, protocol_fee);
-            transfer::public_transfer(
-                coin::from_balance(fee_balance, ctx), 
-                escrow.protocol_fee_recipient
-            );
-        };
-        
-        if (integrator_fee > 0) {
-            let fee_balance = balance::split(&mut escrow.amount, integrator_fee);
-            transfer::public_transfer(
-                coin::from_balance(fee_balance, ctx), 
-                escrow.integrator_fee_recipient
-            );
-        };
-        
-        // Transfer remaining amount to maker
-        let maker_balance = balance::withdraw_all(&mut escrow.amount);
-        transfer::public_transfer(coin::from_balance(maker_balance, ctx), escrow.maker);
-        
-        // Transfer safety deposit to caller
-        let safety_deposit = balance::withdraw_all(&mut escrow.safety_deposit);
-        transfer::public_transfer(coin::from_balance(safety_deposit, ctx), sender);
-        
-        // Emit events
-        event::emit(EscrowWithdrawal {
-            escrow_id: object::id(escrow),
-            secret,
-            recipient: escrow.maker,
-        });
-        
-        event::emit(SecretRevealed {
             order_hash: escrow.order_hash,
-            secret,
-            hashlock: escrow.hashlock,
+            cancelled_by: tx_context::sender(ctx),
+            refunded_amount: refund_amount,
+        });
+
+        refund_coin
+    }
+
+    // ============= Validator Functions =============
+
+    /// Add validator witness to escrow (for cross-chain verification)
+    public fun add_validator_witness(
+        registry: &EscrowRegistry,
+        escrow: &mut CrossChainEscrow<T>,
+        ctx: &TxContext
+    ) {
+        let validator = tx_context::sender(ctx);
+        assert!(vec_map::contains(&registry.authorized_validators, &validator), E_UNAUTHORIZED);
+        
+        // Add witness if not already present
+        if (!vector::contains(&escrow.witnesses, &validator)) {
+            vector::push_back(&mut escrow.witnesses, validator);
+        };
+    }
+
+    /// Check if escrow has sufficient validator witnesses
+    public fun has_sufficient_witnesses<T>(
+        registry: &EscrowRegistry,
+        escrow: &CrossChainEscrow<T>
+    ): bool {
+        vector::length(&escrow.witnesses) >= registry.min_validators
+    }
+
+    // ============= Admin Functions =============
+
+    /// Add authorized validator
+    public fun add_validator(
+        _: &EscrowAdminCap,
+        registry: &mut EscrowRegistry,
+        validator: address,
+        ctx: &TxContext
+    ) {
+        vec_map::insert(&mut registry.authorized_validators, validator, true);
+        
+        event::emit(ValidatorAdded {
+            validator,
+            added_by: tx_context::sender(ctx),
         });
     }
 
-    /// Public withdraw from destination escrow
-    public entry fun public_withdraw_dst<T>(
-        escrow: &mut SuiEscrowDst<T>,
-        secret: vector<u8>,
+    /// Remove validator
+    public fun remove_validator(
+        _: &EscrowAdminCap,
+        registry: &mut EscrowRegistry,
+        validator: address,
+    ) {
+        if (vec_map::contains(&registry.authorized_validators, &validator)) {
+            vec_map::remove(&mut registry.authorized_validators, &validator);
+        };
+    }
+
+    /// Update minimum validators required
+    public fun update_min_validators(
+        _: &EscrowAdminCap,
+        registry: &mut EscrowRegistry,
+        new_min: u64,
+    ) {
+        registry.min_validators = new_min;
+    }
+
+    /// Emergency cleanup of expired escrows
+    public fun cleanup_expired_escrow<T>(
+        _: &EscrowAdminCap,
+        escrow: &mut CrossChainEscrow<T>,
         clock: &Clock,
         ctx: &mut TxContext
-    ) {
+    ): Option<Coin<T>> {
         let current_time = clock::timestamp_ms(clock);
         
-        // Validate timing - must be in public withdrawal period
-        assert!(current_time >= escrow.timelocks.public_withdrawal_start, E_INVALID_TIME);
-        assert!(current_time < escrow.timelocks.cancellation_start, E_INVALID_TIME);
-        
-        // Validate not already processed
-        assert!(!escrow.is_withdrawn, E_ALREADY_WITHDRAWN);
-        assert!(!escrow.is_cancelled, E_ALREADY_CANCELLED);
-        
-        // Validate secret
-        let computed_hash = hash::keccak256(&secret);
-        assert!(computed_hash == escrow.hashlock, E_INVALID_SECRET);
-        
-        // Mark as withdrawn
-        escrow.is_withdrawn = true;
-        
-        // Handle fee distribution (same as private withdrawal)
-        let total_amount = balance::value(&escrow.amount);
-        let protocol_fee = escrow.protocol_fee_amount;
-        let integrator_fee = escrow.integrator_fee_amount;
-        
-        // Transfer fees
-        if (protocol_fee > 0) {
-            let fee_balance = balance::split(&mut escrow.amount, protocol_fee);
-            transfer::public_transfer(
-                coin::from_balance(fee_balance, ctx), 
-                escrow.protocol_fee_recipient
-            );
-        };
-        
-        if (integrator_fee > 0) {
-            let fee_balance = balance::split(&mut escrow.amount, integrator_fee);
-            transfer::public_transfer(
-                coin::from_balance(fee_balance, ctx), 
-                escrow.integrator_fee_recipient
-            );
-        };
-        
-        // Transfer remaining amount to maker
-        let maker_balance = balance::withdraw_all(&mut escrow.amount);
-        transfer::public_transfer(coin::from_balance(maker_balance, ctx), escrow.maker);
-        
-        // Transfer safety deposit to caller
-        let safety_deposit = balance::withdraw_all(&mut escrow.safety_deposit);
-        transfer::public_transfer(coin::from_balance(safety_deposit, ctx), tx_context::sender(ctx));
-        
-        // Emit events
-        event::emit(EscrowWithdrawal {
-            escrow_id: object::id(escrow),
-            secret,
-            recipient: escrow.maker,
-        });
-        
-        event::emit(SecretRevealed {
-            order_hash: escrow.order_hash,
-            secret,
-            hashlock: escrow.hashlock,
-        });
+        // Only cleanup if significantly expired (7 days past cancellation)
+        if (current_time >= escrow.cancellation_time + 604800000 && escrow.status == 0) {
+            escrow.status = 2; // Mark as cancelled
+            
+            let refund_amount = balance::value(&escrow.locked_amount);
+            if (refund_amount > 0) {
+                let refund_balance = balance::withdraw_all(&mut escrow.locked_amount);
+                let refund_coin = coin::from_balance(refund_balance, ctx);
+                
+                event::emit(EscrowCancelled {
+                    escrow_id: object::id(escrow),
+                    order_hash: escrow.order_hash,
+                    cancelled_by: tx_context::sender(ctx),
+                    refunded_amount: refund_amount,
+                });
+                
+                option::some(refund_coin)
+            } else {
+                option::none()
+            }
+        } else {
+            option::none()
+        }
     }
 
-    /// Cancel destination escrow
-    public entry fun cancel_dst<T>(
-        escrow: &mut SuiEscrowDst<T>,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        let sender = tx_context::sender(ctx);
-        let current_time = clock::timestamp_ms(clock);
-        
-        // Validate caller is taker
-        assert!(sender == escrow.taker, E_UNAUTHORIZED);
-        
-        // Validate timing - must be after cancellation period
-        assert!(current_time >= escrow.timelocks.cancellation_start, E_INVALID_TIME);
-        
-        // Validate not already processed
-        assert!(!escrow.is_withdrawn, E_ALREADY_WITHDRAWN);
-        assert!(!escrow.is_cancelled, E_ALREADY_CANCELLED);
-        
-        // Mark as cancelled
-        escrow.is_cancelled = true;
-        
-        // Refund to taker
-        let amount = balance::withdraw_all(&mut escrow.amount);
-        let safety_deposit = balance::withdraw_all(&mut escrow.safety_deposit);
-        
-        transfer::public_transfer(coin::from_balance(amount, ctx), escrow.taker);
-        transfer::public_transfer(coin::from_balance(safety_deposit, ctx), sender);
-        
-        event::emit(EscrowCancelled {
-            escrow_id: object::id(escrow),
-            refund_recipient: escrow.taker,
-        });
-    }
+    // ============= View Functions =============
 
-    // ========== Emergency Functions ==========
-
-    /// Emergency rescue function (admin only, after rescue delay)
-    public entry fun rescue_funds<T>(
-        factory: &EscrowFactory,
-        escrow_src: &mut SuiEscrowSrc<T>,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        let sender = tx_context::sender(ctx);
-        let current_time = clock::timestamp_ms(clock);
-        
-        // Only admin can rescue
-        assert!(sender == factory.admin, E_UNAUTHORIZED);
-        
-        // Must wait for rescue delay
-        assert!(
-            current_time >= escrow_src.timelocks.deployed_at + factory.rescue_delay, 
-            E_INVALID_TIME
-        );
-        
-        // Transfer all funds to admin
-        if (balance::value(&escrow_src.amount) > 0) {
-            let amount = balance::withdraw_all(&mut escrow_src.amount);
-            transfer::public_transfer(coin::from_balance(amount, ctx), sender);
-        };
-        
-        if (balance::value(&escrow_src.safety_deposit) > 0) {
-            let deposit = balance::withdraw_all(&mut escrow_src.safety_deposit);
-            transfer::public_transfer(coin::from_balance(deposit, ctx), sender);
-        };
-    }
-
-    // ========== View Functions ==========
-
-    /// Get escrow source information
-    public fun get_src_escrow_info<T>(escrow: &SuiEscrowSrc<T>): (
+    /// Get escrow details
+    public fun get_escrow_info<T>(escrow: &CrossChainEscrow<T>): (
         vector<u8>, // order_hash
         vector<u8>, // hashlock
-        address,    // maker
-        address,    // taker
+        address,    // sui_maker
+        address,    // eth_counterparty
         u64,        // amount
-        u64,        // safety_deposit
-        bool,       // is_withdrawn
-        bool        // is_cancelled
+        u64,        // withdrawal_time
+        u64,        // cancellation_time
+        u8          // status
     ) {
         (
             escrow.order_hash,
             escrow.hashlock,
-            escrow.maker,
-            escrow.taker,
-            balance::value(&escrow.amount),
-            balance::value(&escrow.safety_deposit),
-            escrow.is_withdrawn,
-            escrow.is_cancelled
+            escrow.sui_maker,
+            escrow.eth_counterparty,
+            balance::value(&escrow.locked_amount),
+            escrow.withdrawal_time,
+            escrow.cancellation_time,
+            escrow.status
         )
     }
 
-    /// Get escrow destination information
-    public fun get_dst_escrow_info<T>(escrow: &SuiEscrowDst<T>): (
-        vector<u8>, // order_hash
-        vector<u8>, // hashlock
-        address,    // maker
-        address,    // taker
-        u64,        // amount
-        u64,        // safety_deposit
-        bool,       // is_withdrawn
-        bool        // is_cancelled
-    ) {
-        (
-            escrow.order_hash,
-            escrow.hashlock,
-            escrow.maker,
-            escrow.taker,
-            balance::value(&escrow.amount),
-            balance::value(&escrow.safety_deposit),
-            escrow.is_withdrawn,
-            escrow.is_cancelled
-        )
+    /// Check if escrow exists in registry
+    public fun escrow_exists(registry: &EscrowRegistry, order_hash: vector<u8>): bool {
+        table::contains(&registry.escrows, order_hash)
     }
 
-    /// Validate secret against hashlock
-    public fun validate_secret(secret: vector<u8>, hashlock: vector<u8>): bool {
-        let computed_hash = hash::keccak256(&secret);
+    /// Get escrow ID by order hash
+    public fun get_escrow_id(registry: &EscrowRegistry, order_hash: vector<u8>): Option<ID> {
+        if (table::contains(&registry.escrows, order_hash)) {
+            option::some(*table::borrow(&registry.escrows, order_hash))
+        } else {
+            option::none()
+        }
+    }
+
+    /// Check if address is authorized validator
+    public fun is_authorized_validator(registry: &EscrowRegistry, validator: address): bool {
+        vec_map::contains(&registry.authorized_validators, &validator)
+    }
+
+    /// Get witness count for escrow
+    public fun get_witness_count<T>(escrow: &CrossChainEscrow<T>): u64 {
+        vector::length(&escrow.witnesses)
+    }
+
+    /// Check if escrow is active
+    public fun is_escrow_active<T>(escrow: &CrossChainEscrow<T>): bool {
+        escrow.status == 0
+    }
+
+    /// Check if withdrawal is allowed
+    public fun can_withdraw<T>(escrow: &CrossChainEscrow<T>, clock: &Clock): bool {
+        if (escrow.status != 0) return false;
+        
+        let current_time = clock::timestamp_ms(clock);
+        current_time >= escrow.withdrawal_time && current_time < escrow.cancellation_time
+    }
+
+    /// Check if cancellation is allowed
+    public fun can_cancel<T>(escrow: &CrossChainEscrow<T>, clock: &Clock): bool {
+        if (escrow.status != 0) return false;
+        
+        let current_time = clock::timestamp_ms(clock);
+        current_time >= escrow.cancellation_time
+    }
+
+    // ============= Utility Functions =============
+
+    /// Create default timelock configuration
+    public fun default_timelock_config(): TimelockConfig {
+        TimelockConfig {
+            finality_delay: 1800000,  // 30 minutes
+            public_window: 5400000,   // 1.5 hours
+            cancellation_delay: 90000000, // 25 hours
+        }
+    }
+
+    /// Create conservative timelock configuration
+    public fun conservative_timelock_config(): TimelockConfig {
+        TimelockConfig {
+            finality_delay: 3600000,  // 1 hour
+            public_window: 10800000,  // 3 hours
+            cancellation_delay: 180000000, // 50 hours
+        }
+    }
+
+    /// Create fast timelock configuration
+    public fun fast_timelock_config(): TimelockConfig {
+        TimelockConfig {
+            finality_delay: 900000,   // 15 minutes
+            public_window: 2700000,   // 45 minutes
+            cancellation_delay: 45000000, // 12.5 hours
+        }
+    }
+
+    /// Verify secret against hashlock
+    public fun verify_secret(secret: vector<u8>, hashlock: vector<u8>): bool {
+        let computed_hash = hash::sha2_256(secret);
         computed_hash == hashlock
     }
 
-    // ========== Test Functions ==========
-    
+    // ============= Test Functions =============
+
     #[test_only]
     public fun init_for_testing(ctx: &mut TxContext) {
         init(ctx);
+    }
+
+    #[test_only]
+    public fun create_test_escrow<T>(
+        registry: &mut EscrowRegistry,
+        payment: Coin<T>,
+        ctx: &mut TxContext
+    ): ID {
+        let order_hash = b"test_order_hash_32_bytes_long!!";
+        let hashlock = b"test_hashlock_32_bytes_long_too!";
+        let eth_counterparty = @0x1234;
+        let timelock_config = default_timelock_config();
+        
+        // Mock clock for testing
+        let clock = clock::create_for_testing(ctx);
+        let escrow_id = create_escrow(
+            registry,
+            payment,
+            order_hash,
+            hashlock,
+            eth_counterparty,
+            timelock_config,
+            1000, // safety deposit
+            &clock,
+            ctx
+        );
+        clock::destroy_for_testing(clock);
+        escrow_id
     }
 }
