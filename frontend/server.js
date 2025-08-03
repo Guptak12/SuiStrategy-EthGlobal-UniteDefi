@@ -11,10 +11,12 @@ app.get("/",function(req,resp){
     resp.sendFile(path);
 })
 //readme
-app.get("/readme",function(req,resp){
-    let path=__dirname+"/landing/readme.html";
-    resp.sendFile(path);
-})
+const path = require("path");
+app.get("/readme", function (req, resp) {
+    const filePath = path.join(__dirname, "landing", "readme.html");
+    resp.sendFile(filePath);
+});
+
 app.get("/app",function(req,resp){
     let path=__dirname+"/landing/app/auth/login/index.html";
     resp.sendFile(path);
