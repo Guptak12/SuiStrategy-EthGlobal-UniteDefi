@@ -277,10 +277,11 @@ section[id] {
 
 .hero-title {
   margin-bottom: var(--card-content-gap);
+  max-width: 65%;
 }
 
 .hero-description {
-  max-width: 800px;
+  max-width: 65%;
   margin: 0 0 3em 0;
 }
 
