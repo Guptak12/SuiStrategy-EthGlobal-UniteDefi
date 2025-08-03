@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@1inch/limit-order-protocol-utils": "^4.0.1",
+    "@mysten/sui.js": "^0.54.1",
+    "crypto": "^1.0.1",
+    "ethers": "^6.15.0"
+  }
+}

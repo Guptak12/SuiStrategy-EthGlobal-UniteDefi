@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SuiStrategy</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="login.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <a href="../../../" class="nav-logo">
+                    <img src="../../../assets/logo.svg" alt="SuiStrategy Logo" class="logo-icon">
+                    <span class="logo-text">SuiStrategy</span>
+                </a>
+                <div class="nav-menu">
+                    <a href="../../../" class="nav-link">← Back to Landing</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="login-main">
+        <div class="container">
+            <div class="login-container">
+                <!-- Login Header -->
+                <div class="login-header">
+                    <h1 class="login-title">Connect Your Wallet to SuiStrategy</h1>
+                    <p class="login-description">
+                        Access leveraged yield strategies, bonds, and cross-chain DeFi on Sui.
+                    </p>
+                </div>
+
+                <!-- Wallet Connection Section -->
+                <section class="wallet-section">
+                    
+                    <!-- Primary Wallets (Sui Native) -->
+                    <div class="wallet-category">
+                        <h3 class="wallet-category-title">Sui Ecosystem</h3>
+                        <div class="wallet-grid">
+                            <button class="wallet-card" data-wallet="sui-wallet">
+                                <div class="wallet-icon">
+                                    <img src="../../../assets/logo.svg" alt="Sui Wallet" class="wallet-logo">
+                                </div>
+                                <div class="wallet-info">
+                                    <h4 class="wallet-name">Sui Wallet</h4>
+                                    <p class="wallet-desc">Official Sui wallet</p>
+                                </div>
+                                <div class="wallet-status" id="sui-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">Detected</span>
+                                </div>
+                            </button>
+
+                            <button class="wallet-card" data-wallet="martian">
+                                <div class="wallet-icon">
+                                    <div class="wallet-placeholder">M</div>
+                                </div>
+                                <div class="wallet-info">
+                                    <h4 class="wallet-name">Martian Wallet</h4>
+                                    <p class="wallet-desc">Multi-chain wallet</p>
+                                </div>
+                                <div class="wallet-status" id="martian-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">Install</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Cross-Chain Wallets -->
+                    <div class="wallet-category">
+                        <h3 class="wallet-category-title">Cross-Chain Access</h3>
+                        <p class="wallet-category-desc">For 1inch Fusion+ and cross-chain operations</p>
+                        <div class="wallet-grid">
+                            <button class="wallet-card" data-wallet="metamask">
+                                <div class="wallet-icon">
+                                    <div class="wallet-placeholder">🦊</div>
+                                </div>
+                                <div class="wallet-info">
+                                    <h4 class="wallet-name">MetaMask</h4>
+                                    <p class="wallet-desc">Ethereum & EVM chains</p>
+                                </div>
+                                <div class="wallet-status" id="metamask-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">Install</span>
+                                </div>
+                            </button>
+
+                            <button class="wallet-card" data-wallet="walletconnect">
+                                <div class="wallet-icon">
+                                    <div class="wallet-placeholder">WC</div>
+                                </div>
+                                <div class="wallet-info">
+                                    <h4 class="wallet-name">WalletConnect</h4>
+                                    <p class="wallet-desc">300+ supported wallets</p>
+                                </div>
+                                <div class="wallet-status">
+                                    <span class="status-dot available"></span>
+                                    <span class="status-text">Available</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- User Role Selection -->
+                <section class="role-selection" id="roleSelection" style="display: none;">
+                    <h2 class="section-title">Choose Your Strategy</h2>
+                    <div class="role-grid">
+                        <div class="role-card" data-role="sstr-holder">
+                            <div class="role-header">
+                                <div class="role-icon">
+                                    <img src="../../../assets/logo.svg" alt="SSTR" class="role-logo">
+                                </div>
+                                <h3 class="role-title">SSTR Holder</h3>
+                                <div class="role-badge">Leverage Strategy</div>
+                            </div>
+                            <p class="role-description">
+                                Get leveraged exposure to SUI growth through treasury-backed tokens. 
+                                Earn yield while maintaining upside potential without liquidation risk.
+                            </p>
+                            <ul class="role-features">
+                                <li>✓ Leveraged SUI exposure</li>
+                                <li>✓ Treasury-backed value</li>
+                                <li>✓ No liquidation risk</li>
+                                <li>✓ Automated yield strategies</li>
+                            </ul>
+                            <button class="btn btn-primary role-btn">Start with SSTR</button>
+                        </div>
+
+                        <div class="role-card" data-role="bond-purchaser">
+                            <div class="role-header">
+                                <div class="role-icon">
+                                    <div class="role-placeholder">💰</div>
+                                </div>
+                                <h3 class="role-title">Bond Purchaser</h3>
+                                <div class="role-badge">Fixed Income</div>
+                            </div>
+                            <p class="role-description">
+                                Fund the treasury with stablecoins to receive convertible debt tokens (CDT) 
+                                and option NFTs. Flexible strategies from conversion to redemption.
+                            </p>
+                            <ul class="role-features">
+                                <li>✓ 0% interest debt tokens</li>
+                                <li>✓ Option NFTs included</li>
+                                <li>✓ Convert to SSTR anytime</li>
+                                <li>✓ Stable asset backing</li>
+                            </ul>
+                            <button class="btn btn-secondary role-btn">Start Bonding</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Protocol Status -->
+                <section class="protocol-status">
+                    <h3 class="status-title">Protocol Status</h3>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <span class="status-label">Treasury Value</span>
+                            <span class="status-value">$2.4M</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">SSTR Price</span>
+                            <span class="status-value">$12.34</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Yield APY</span>
+                            <span class="status-value">8.7%</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Network</span>
+                            <span class="status-value network-status">
+                                <span class="network-dot"></span>
+                                Sui Mainnet
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Loading State -->
+                <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <h3 class="loading-title">Connecting Wallet...</h3>
+                        <p class="loading-text">Please approve the connection in your wallet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3 class="footer-title">Security</h3>
+                    <div class="footer-links">
+                        <a href="#" class="footer-link">Audit Reports</a>
+                        <a href="#" class="footer-link">Bug Bounty</a>
+                        <a href="#" class="footer-link">Terms of Service</a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h3 class="footer-title">Support</h3>
+                    <div class="footer-links">
+                        <a href="#" class="footer-link">Documentation</a>
+                        <a href="#" class="footer-link">Discord</a>
+                        <a href="#" class="footer-link">Help Center</a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <p class="footer-disclaimer">
+                        By connecting your wallet, you agree to our Terms of Service and acknowledge 
+                        the risks associated with DeFi protocols. Not financial advice.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Wallet connection logic
+        const walletCards = document.querySelectorAll('.wallet-card');
+        const roleSelection = document.getElementById('roleSelection');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        let connectedWallet = null;
+
+        // Wallet detection
+        function detectWallets() {
+            // Check for Sui Wallet
+            if (typeof window.suiWallet !== 'undefined') {
+                updateWalletStatus('sui-status', 'detected');
+            }
+
+            // Check for MetaMask
+            if (typeof window.ethereum !== 'undefined') {
+                updateWalletStatus('metamask-status', 'detected');
+            }
+
+            // Check for Martian
+            if (typeof window.martian !== 'undefined') {
+                updateWalletStatus('martian-status', 'detected');
+            }
+        }
+
+        function updateWalletStatus(statusId, status) {
+            const statusElement = document.getElementById(statusId);
+            if (statusElement) {
+                const dot = statusElement.querySelector('.status-dot');
+                const text = statusElement.querySelector('.status-text');
+                
+                if (status === 'detected') {
+                    dot.classList.add('available');
+                    text.textContent = 'Connect';
+                }
+            }
+        }
+
+        // Wallet connection handlers
+        walletCards.forEach(card => {
+            card.addEventListener('click', async function() {
+                const walletType = this.dataset.wallet;
+                await connectWallet(walletType);
+            });
+        });
+
+        async function connectWallet(walletType) {
+            loadingOverlay.style.display = 'flex';
+            
+            try {
+                // Simulate wallet connection
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                connectedWallet = walletType;
+                loadingOverlay.style.display = 'none';
+                
+                // Show role selection
+                roleSelection.style.display = 'block';
+                roleSelection.scrollIntoView({ behavior: 'smooth' });
+                
+                // Update UI to show connected state
+                updateConnectedState(walletType);
+                
+            } catch (error) {
+                loadingOverlay.style.display = 'none';
+                alert('Failed to connect wallet. Please try again.');
+            }
+        }
+
+        function updateConnectedState(walletType) {
+            const walletCard = document.querySelector(`[data-wallet="${walletType}"]`);
+            if (walletCard) {
+                walletCard.classList.add('connected');
+                const statusText = walletCard.querySelector('.status-text');
+                if (statusText) {
+                    statusText.textContent = 'Connected';
+                }
+            }
+        }
+
+        // Role selection handlers
+        const roleCards = document.querySelectorAll('.role-card');
+        roleCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const role = this.dataset.role;
+                selectRole(role);
+            });
+        });
+
+        function selectRole(role) {
+            // Here you would redirect to the appropriate dashboard
+            console.log(`Selected role: ${role} with wallet: ${connectedWallet}`);
+            
+            // Simulate navigation to dashboard
+            if (role === 'sstr-holder') {
+                // Navigate to SSTR dashboard
+                alert('Redirecting to SSTR Dashboard...');
+            } else {
+                // Navigate to bonding interface
+                alert('Redirecting to Bonding Interface...');
+            }
+        }
+
+        // Initialize wallet detection on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            detectWallets();
+        });
+
+        // Update protocol status periodically
+        function updateProtocolStatus() {
+            // This would fetch real data from your API
+            console.log('Updating protocol status...');
+        }
+
+        setInterval(updateProtocolStatus, 30000); // Update every 30 seconds
+    </script>
+</body>
+</html>
